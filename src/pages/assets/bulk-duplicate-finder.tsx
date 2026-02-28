@@ -259,38 +259,52 @@ export default function BulkDuplicatePage() {
     });
   };
 
-  const handleDeleteAllSelected = async () => {
-    if (selectedAssets.size === 0 || selectionMode !== 'discard') return;
-
+  // Core dedup execution: mark kept assets as non-duplicate, delete discarded assets
+  const executeDedup = async (
+    keptIds: string[],
+    discardedIds: string[]
+  ) => {
     setIsDeleting(true);
     try {
-      const selectedAssetIds = Array.from(selectedAssets);
-      
-      // Delete all selected assets
-      await deleteAssets(selectedAssetIds);
+      // Mark kept assets as non-duplicate
+      if (keptIds.length > 0) {
+        await updateAssets({ ids: keptIds, duplicateId: null });
+      }
 
-      // Update duplicates: remove deleted assets and clean up empty records
-      setDuplicates(prev => {
-        const updatedDuplicates = prev.map(record => ({
-          ...record,
-          assets: record.assets.filter(asset => !selectedAssets.has(asset.id))
-        })).filter(record => record.assets.length > 0);
+      // Delete discarded assets
+      if (discardedIds.length > 0) {
+        await deleteAssets(discardedIds);
+      }
 
-        return updatedDuplicates;
+      const removedIds = new Set([...keptIds, ...discardedIds]);
+      let discardedSize = 0;
+      const discardedSet = new Set(discardedIds);
+      duplicates.forEach(r => r.assets.forEach(a => {
+        if (discardedSet.has(a.id)) discardedSize += a.exifInfo.fileSizeInByte;
+      }));
+
+      setDuplicates(prev =>
+        prev.map(r => ({
+          ...r,
+          assets: r.assets.filter(a => !removedIds.has(a.id))
+        })).filter(r => r.assets.length > 0)
+      );
+
+      setSelectedAssets(prev => {
+        const next = new Set(prev);
+        removedIds.forEach(id => next.delete(id));
+        return next;
       });
-
-      // Clear selection
-      setSelectedAssets(new Set());
       setLastSelectedIndex(-1);
 
       toast({
         title: "Success",
-        description: `Successfully deleted ${selectedAssetIds.length} selected assets${selectedAssetsInfo.totalSize > 0 ? ` and saved ${humanizeBytes(selectedAssetsInfo.totalSize)} of storage` : ''}.`,
+        description: `Kept ${keptIds.length} asset(s), deleted ${discardedIds.length}.${discardedSize > 0 ? ` Saved ${humanizeBytes(discardedSize)}.` : ''}`,
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete selected assets. Please try again.",
+        description: error.message || "Failed to process assets. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -298,51 +312,26 @@ export default function BulkDuplicatePage() {
     }
   };
 
-  const handleKeepSelected = async (record: IDuplicateAssetRecord, selectedIds: string[], unselectedIds: string[]) => {
-    setIsDeleting(true);
-    try {
-      const unselectedSize = record.assets
-        .filter(asset => unselectedIds.includes(asset.id))
-        .reduce((sum, asset) => sum + asset.exifInfo.fileSizeInByte, 0);
+  const handleDeleteAllSelected = async () => {
+    if (selectedAssets.size === 0 || selectionMode !== 'discard') return;
 
-      // First, update selected assets to remove duplicateId (mark as kept)
-      if (selectedIds.length > 0) {
-        await updateAssets({
-          ids: selectedIds,
-          duplicateId: null
-        });
-      }
+    const selectedAssetIds = Array.from(selectedAssets);
 
-      // Then, delete unselected assets
-      if (unselectedIds.length > 0) {
-        await deleteAssets(unselectedIds);
-      }
-
-      // Remove the entire record from duplicates (since selected assets are no longer duplicates)
-      setDuplicates(prev => prev.filter(r => r.duplicateId !== record.duplicateId));
-
-      // Remove all assets from this record from selection
-      setSelectedAssets(prev => {
-        const newSelection = new Set(prev);
-        [...selectedIds, ...unselectedIds].forEach(id => newSelection.delete(id));
-        return newSelection;
+    // In discard mode, the selected assets are discarded, the rest are kept
+    const keptIds: string[] = [];
+    duplicates.forEach(record => {
+      record.assets.forEach(asset => {
+        if (!selectedAssets.has(asset.id)) {
+          keptIds.push(asset.id);
+        }
       });
+    });
 
-      setLastSelectedIndex(-1);
+    executeDedup(keptIds, selectedAssetIds);
+  };
 
-      toast({
-        title: "Success",
-        description: `Successfully kept ${selectedIds.length} assets and deleted ${unselectedIds.length} duplicates. Storage saved: ${humanizeBytes(unselectedSize)}.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process selected assets. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleKeepSelected = async (_record: IDuplicateAssetRecord, keptIds: string[], discardedIds: string[]) => {
+    executeDedup(keptIds, discardedIds);
   };
 
 
