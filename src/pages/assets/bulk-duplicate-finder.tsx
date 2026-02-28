@@ -322,10 +322,19 @@ export default function BulkDuplicatePage() {
   ) => {
     setIsDeleting(true);
     try {
-      // Move albums to kept assets
-      await Promise.all(
-        albumIdsToTransfer.map(albumId => addAssetToAlbum(albumId, keptIds))
-      );
+      // Move albums to kept assets (only add each asset to albums it's not already in)
+      const transferCalls: Promise<unknown>[] = [];
+      const albumIdsToTransferSet = new Set(albumIdsToTransfer);
+      for (const albumId of albumIdsToTransferSet) {
+        const assetsToAdd = keptIds.filter(id => {
+          const existing = assetAlbums[id] || [];
+          return !existing.some(a => a.albumId === albumId);
+        });
+        if (assetsToAdd.length > 0) {
+          transferCalls.push(addAssetToAlbum(albumId, assetsToAdd));
+        }
+      }
+      await Promise.all(transferCalls);
 
       // Mark kept assets as non-duplicate
       if (keptIds.length > 0) {
