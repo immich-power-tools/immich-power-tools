@@ -100,7 +100,10 @@ function DuplicateAssetItem({ asset, isSelected, onSelect, selectionMode }: Dupl
         <h3 className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : ''}`}>
           {asset.originalFileName}
         </h3>
-        
+        <p className={`text-xs truncate ${isSelected ? 'text-white/70' : 'text-gray-500 dark:text-gray-500'}`} title={asset.originalPath}>
+          {asset.originalPath.substring(0, asset.originalPath.lastIndexOf('/'))}
+        </p>
+
         <div className="mt-2 space-y-1">
           <div className={`flex items-center gap-1 text-xs ${isSelected ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>
             <HardDrive size={12} />
