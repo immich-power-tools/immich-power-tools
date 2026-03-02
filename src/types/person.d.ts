@@ -12,7 +12,7 @@ export interface IPerson {
 export interface IFace {
   id:             string;
   assetId:        string;
-  personId:       string;
+  personId:       string | null;
   imageWidth:     number;
   imageHeight:    number;
   boundingBoxX1:  number;
@@ -21,6 +21,18 @@ export interface IFace {
   boundingBoxY2:  number;
   assetType:      string;
   originalFileName: string;
+}
+
+export interface IFaceCluster {
+  clusterId:    number;
+  count:        number;
+  previewFaces: IFace[];
+  faceIds:      string[];
+}
+
+export interface IFaceClustersResponse {
+  totalFaces: number;
+  clusters:   IFaceCluster[];
 }
 
 interface IPeopleListResponse extends IListData{

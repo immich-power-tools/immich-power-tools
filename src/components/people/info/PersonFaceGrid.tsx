@@ -1,6 +1,6 @@
 import { ASSET_THUMBNAIL_PATH } from "@/config/routes";
-import { listPersonFaces, searchPeople, unmergeFaces } from "@/handlers/api/people.handler";
-import { IFace, IPerson } from "@/types/person";
+import { listPersonFaceClusters, searchPeople, unmergeFaces } from "@/handlers/api/people.handler";
+import { IFace, IFaceCluster, IFaceClustersResponse, IPerson } from "@/types/person";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -17,46 +17,29 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 
-interface FaceCropProps {
-  face: IFace;
-  selected: boolean;
-  onToggle: (face: IFace) => void;
-}
-
-function FaceCrop({ face, selected, onToggle }: FaceCropProps) {
+function FaceCropThumb({ face }: { face: IFace }) {
   const thumbUrl = ASSET_THUMBNAIL_PATH(face.assetId);
 
-  // Calculate cropping percentages from bounding box
   const faceW = face.boundingBoxX2 - face.boundingBoxX1;
   const faceH = face.boundingBoxY2 - face.boundingBoxY1;
   const faceCX = face.boundingBoxX1 + faceW / 2;
   const faceCY = face.boundingBoxY1 + faceH / 2;
 
-  // Add padding around the face (30% extra on each side)
   const pad = 0.3;
   const cropW = faceW * (1 + pad * 2);
   const cropH = faceH * (1 + pad * 2);
 
-  // Scale: how much to enlarge the image so the crop fills the container
   const scaleX = face.imageWidth / cropW;
   const scaleY = face.imageHeight / cropH;
   const scale = Math.min(scaleX, scaleY);
 
-  // Object position: center the face in the container
   const objPosX = (faceCX / face.imageWidth) * 100;
   const objPosY = (faceCY / face.imageHeight) * 100;
 
   return (
-    <div
-      className={cn(
-        "relative w-full aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
-        selected
-          ? "border-blue-500 ring-2 ring-blue-500/30"
-          : "border-transparent hover:border-zinc-400"
-      )}
-      onClick={() => onToggle(face)}
-    >
+    <div className="relative w-full aspect-square rounded-md overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={thumbUrl}
@@ -69,14 +52,53 @@ function FaceCrop({ face, selected, onToggle }: FaceCropProps) {
           transformOrigin: `${objPosX}% ${objPosY}%`,
         }}
       />
-      {selected && (
-        <div className="absolute top-1 right-1 bg-blue-500 rounded-full p-0.5">
-          <Check className="w-3 h-3 text-white" />
-        </div>
+    </div>
+  );
+}
+
+interface ClusterCardProps {
+  cluster: IFaceCluster;
+  selected: boolean;
+  onToggle: (cluster: IFaceCluster) => void;
+  index: number;
+}
+
+function ClusterCard({ cluster, selected, onToggle, index }: ClusterCardProps) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border-2 p-3 cursor-pointer transition-all",
+        selected
+          ? "border-blue-500 ring-2 ring-blue-500/30 bg-blue-500/5"
+          : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
       )}
-      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 truncate">
-        {face.originalFileName}
+      onClick={() => onToggle(cluster)}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">
+          Cluster {index + 1}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">
+            {cluster.count} face{cluster.count !== 1 ? "s" : ""}
+          </span>
+          {selected && (
+            <div className="bg-blue-500 rounded-full p-0.5">
+              <Check className="w-3 h-3 text-white" />
+            </div>
+          )}
+        </div>
       </div>
+      <div className="grid grid-cols-3 gap-1">
+        {cluster.previewFaces.map((face) => (
+          <FaceCropThumb key={face.id} face={face} />
+        ))}
+      </div>
+      {cluster.count > cluster.previewFaces.length && (
+        <p className="text-[11px] text-gray-500 mt-1 text-center">
+          +{cluster.count - cluster.previewFaces.length} more
+        </p>
+      )}
     </div>
   );
 }
@@ -87,63 +109,63 @@ interface PersonFaceGridProps {
 }
 
 export default function PersonFaceGrid({ personId, personName }: PersonFaceGridProps) {
-  const [faces, setFaces] = useState<IFace[]>([]);
+  const [data, setData] = useState<IFaceClustersResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedFaces, setSelectedFaces] = useState<Set<string>>(new Set());
+  const [selectedClusters, setSelectedClusters] = useState<Set<number>>(new Set());
   const [unmerging, setUnmerging] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<IPerson[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [threshold, setThreshold] = useState(0.65);
   const { toast } = useToast();
 
-  const fetchFaces = () => {
+  const fetchClusters = () => {
     setLoading(true);
-    listPersonFaces(personId)
-      .then((data) => {
-        setFaces(data);
-        setSelectedFaces(new Set());
+    listPersonFaceClusters(personId, threshold)
+      .then((result) => {
+        setData(result);
+        setSelectedClusters(new Set());
       })
       .catch(() => {
-        toast({ title: "Error", description: "Failed to load faces" });
+        toast({ title: "Error", description: "Failed to load face clusters" });
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchFaces();
-  }, [personId]);
+    fetchClusters();
+  }, [personId, threshold]);
 
-  const toggleFace = (face: IFace) => {
-    setSelectedFaces((prev) => {
+  const clusters = data?.clusters || [];
+
+  const toggleCluster = (cluster: IFaceCluster) => {
+    setSelectedClusters((prev) => {
       const next = new Set(prev);
-      if (next.has(face.id)) {
-        next.delete(face.id);
+      if (next.has(cluster.clusterId)) {
+        next.delete(cluster.clusterId);
       } else {
-        next.add(face.id);
+        next.add(cluster.clusterId);
       }
       return next;
     });
   };
 
-  const handleSelectAll = () => {
-    if (selectedFaces.size === faces.length) {
-      setSelectedFaces(new Set());
-    } else {
-      setSelectedFaces(new Set(faces.map((f) => f.id)));
-    }
-  };
+  const selectedFaceIds = clusters
+    .filter((c) => selectedClusters.has(c.clusterId))
+    .flatMap((c) => c.faceIds);
+
+  const selectedFaceCount = selectedFaceIds.length;
 
   const handleUnmerge = (targetPersonId?: string) => {
-    const faceIds = Array.from(selectedFaces);
     setUnmerging(true);
-    unmergeFaces(personId, faceIds, targetPersonId)
+    unmergeFaces(personId, selectedFaceIds, targetPersonId)
       .then((result) => {
         toast({
           title: "Success",
           description: `Moved ${result.moved} face(s) to ${targetPersonId ? "selected" : "a new"} person`,
         });
         setDialogOpen(false);
-        fetchFaces();
+        fetchClusters();
       })
       .catch(() => {
         toast({
@@ -172,49 +194,68 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-medium">Faces</span>
-          <span className="text-sm text-gray-500">{faces.length} total</span>
+          <span className="text-lg font-medium">Face Clusters</span>
+          <span className="text-sm text-gray-500">
+            {data?.totalFaces} faces in {clusters.length} cluster{clusters.length !== 1 ? "s" : ""}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          {faces.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              {selectedFaces.size === faces.length ? "Deselect All" : "Select All"}
-            </Button>
-          )}
-          {selectedFaces.size > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-gray-500">Threshold</Label>
+            <Input
+              type="number"
+              step="0.05"
+              min="0.3"
+              max="0.95"
+              value={threshold}
+              onChange={(e) => setThreshold(parseFloat(e.target.value))}
+              className="w-20 h-7 text-xs"
+            />
+          </div>
+          {selectedClusters.size > 0 && (
             <Button
               variant="destructive"
               size="sm"
               onClick={() => setDialogOpen(true)}
               disabled={unmerging}
             >
-              Unmerge {selectedFaces.size} Face{selectedFaces.size !== 1 ? "s" : ""}
+              Unmerge {selectedFaceCount} Face{selectedFaceCount !== 1 ? "s" : ""}
             </Button>
           )}
         </div>
       </div>
 
-      {faces.length === 0 ? (
-        <p className="text-sm text-gray-500">No faces found for this person.</p>
+      {clusters.length <= 1 ? (
+        <p className="text-sm text-gray-500">
+          {clusters.length === 0
+            ? "No faces found for this person."
+            : "All faces belong to a single cluster. Try lowering the threshold to split them."}
+        </p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-          {faces.map((face) => (
-            <FaceCrop
-              key={face.id}
-              face={face}
-              selected={selectedFaces.has(face.id)}
-              onToggle={toggleFace}
-            />
-          ))}
-        </div>
+        <p className="text-sm text-gray-500">
+          Select the cluster(s) that don&apos;t belong to {personName || "this person"}, then click Unmerge.
+        </p>
       )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {clusters.map((cluster, i) => (
+          <ClusterCard
+            key={cluster.clusterId}
+            cluster={cluster}
+            index={i}
+            selected={selectedClusters.has(cluster.clusterId)}
+            onToggle={toggleCluster}
+          />
+        ))}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Unmerge Faces</DialogTitle>
             <DialogDescription>
-              Move {selectedFaces.size} selected face{selectedFaces.size !== 1 ? "s" : ""} away
+              Move {selectedFaceCount} face{selectedFaceCount !== 1 ? "s" : ""} from{" "}
+              {selectedClusters.size} cluster{selectedClusters.size !== 1 ? "s" : ""} away
               from {personName || "this person"}.
             </DialogDescription>
           </DialogHeader>
