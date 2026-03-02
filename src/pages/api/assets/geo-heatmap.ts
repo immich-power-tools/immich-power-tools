@@ -15,7 +15,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
 
-  const dbAssets = await db.select({
+  // Build query with optional LEFT JOINs based on filters
+  let query = db.select({
     assetId: assets.id,
     latitude: exif.latitude,
     longitude: exif.longitude,

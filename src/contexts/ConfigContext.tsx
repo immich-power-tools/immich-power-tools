@@ -4,14 +4,18 @@ export interface ConfigContextType {
   immichURL: string;
   exImmichUrl: string;
   version?: string;
-  geminiEnabled: boolean;
+  aiEnabled: boolean;
+  oauthEnabled: boolean;
+  oauthButtonText: string;
 }
 
 const ConfigContext = createContext<ConfigContextType>({
   immichURL: "",
   exImmichUrl: "",
   version: "",
-  geminiEnabled: false,
+  aiEnabled: false,
+  oauthEnabled: false,
+  oauthButtonText: "",
 });
 
 export default ConfigContext;

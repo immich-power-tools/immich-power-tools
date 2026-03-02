@@ -3,7 +3,7 @@ import { ENV } from "@/config/environment";
 import { ASSET_VIDEO_PATH } from "@/config/routes";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { cleanUpAsset, isFlipped } from "@/helpers/asset.helper";
-import { parseFindQuery } from "@/helpers/gemini.helper";
+import { parseFindQuery } from "@/helpers/ai.helper";
 import { person } from "@/schema";
 import { Person } from "@/schema/person.schema";
 import { inArray } from "drizzle-orm";

@@ -49,7 +49,7 @@ export default function FindPage() {
   // const [selectedIds, setSelectedIds] = useState<string[]>([]);
   // const [assets, setAssets] = useState<IAsset[]>([]);
   const { toast } = useToast(); // Initialize toast
-  const { geminiEnabled, exImmichUrl } = useConfig();
+  const { aiEnabled } = useConfig();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<IFindFilters>({});
@@ -216,7 +216,7 @@ export default function FindPage() {
             ))}
           </div>
           <p className='text-xs text-muted-foreground text-center flex gap-1 items-center mt-4'> {/* Adjusted margin top */}
-            <span>Power tools uses Google Gemini only for parsing your query. None of your data is sent to Gemini.</span>
+            <span>Power tools uses your configured AI model only for parsing your query. None of your library data is sent to the AI provider.</span>
           </p>
         </div>
       )
@@ -272,7 +272,7 @@ export default function FindPage() {
   return (
     <PageLayout className="pb-20">
       <Header leftComponent="Find" />
-      {geminiEnabled ? (
+      {aiEnabled ? (
         <>
           <div className="flex flex-col gap-4 p-2">
             <FindInput 
@@ -287,14 +287,14 @@ export default function FindPage() {
       ) : (
         <div className="flex justify-center py-10 items-center h-full flex-col gap-2">
           <WandSparkles className='w-10 h-10 text-muted-foreground' />
-          <p className='text-lg font-semibold'>Google Gemini is not enabled</p>
+          <p className='text-lg font-semibold'>AI parsing is not enabled</p>
           <p className='text-sm text-muted-foreground max-w-md text-center'>
-            Currently, the Power Tools Find is relying on Google Gemini for parsing the query.
-            Please enable Gemini by adding <kbd className='bg-zinc-200 text-black dark:text-white px-1 py-0.5 rounded-md dark:bg-zinc-500'>GEMINI_API_KEY</kbd> in the <kbd className='bg-zinc-200 text-black dark:text-white px-1 py-0.5 rounded-md dark:bg-zinc-500'>.env</kbd> file.
+            Currently, the Power Tools Find relies on an OpenAI-compatible API for parsing the query.
+            Please configure <kbd className='bg-zinc-200 text-black dark:text-white px-1 py-0.5 rounded-md dark:bg-zinc-500'>AI_API_KEY</kbd> and <kbd className='bg-zinc-200 text-black dark:text-white px-1 py-0.5 rounded-md dark:bg-zinc-500'>AI_MODEL</kbd> in the <kbd className='bg-zinc-200 text-black dark:text-white px-1 py-0.5 rounded-md dark:bg-zinc-500'>.env</kbd> file.
           </p>
           <div className="border border-l-4 border-zinc-200 dark:border-zinc-500 rounded-md p-2">
             <p className='text-xs text-muted-foreground text-center flex gap-1 items-center'>
-              <span>Power tools uses Google Gemini only for parsing your query. None of your data is sent to Gemini.</span>
+              <span>Power tools uses your configured AI model only for parsing your query. None of your library data is sent to the AI provider.</span>
             </p>
           </div>
         </div>

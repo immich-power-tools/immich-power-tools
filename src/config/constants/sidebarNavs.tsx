@@ -1,4 +1,4 @@
-import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, Rewind, Search, User, Video   } from "lucide-react";
+import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, Rewind, Search, Share2, User, Video   } from "lucide-react";
 
 export const sidebarNavs = [
   // {
@@ -35,6 +35,11 @@ export const sidebarNavs = [
     title: "Manage Albums",
     link: "/albums",
     icon: <GalleryHorizontal className="h-4 w-4" />,
+  },
+  {
+    title: "Import shared",
+    link: "/assets/import-shared",
+    icon: <Share2 className="h-4 w-4" />,
   },
 
   {

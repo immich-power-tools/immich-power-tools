@@ -1,7 +1,7 @@
 import Header from '@/components/shared/Header'
 import React, { useState } from 'react'
 import PageLayout from '@/components/layouts/PageLayout';
-import { getAssetGeoHeatmap, IHeatMapParams } from '@/handlers/api/asset.handler';
+import { IHeatMapParams } from '@/handlers/api/asset.handler';
 import { useTheme } from 'next-themes';
 import { X } from 'lucide-react';
 import AlbumDropdown from '@/components/shared/AlbumDropdown';
@@ -14,10 +14,6 @@ const LeafletHeatMap = dynamic(() => import('../../components/LeafletHeatMap'), 
   ssr: false,
   loading: () => <div className="h-full w-full flex items-center justify-center">Loading map...</div>
 });
-
-interface IHeatMapProps {
-  filters: IHeatMapParams;
-}
 
 export default function GeoHeatmap() {
   const { theme } = useTheme();

@@ -33,7 +33,9 @@ App.getInitialProps = async () => {
       exImmichUrl: ENV.EXTERNAL_IMMICH_URL,
       immichURL: ENV.IMMICH_URL,
       version: ENV.VERSION,
-      geminiEnabled: !!ENV.GEMINI_API_KEY?.length,
+      aiEnabled: !!ENV.AI_API_KEY?.length && !!ENV.AI_MODEL?.length,
+      oauthEnabled: ENV.OAUTH_ENABLED,
+      oauthButtonText: ENV.OAUTH_BUTTON_TEXT,
     },
   };
 };
