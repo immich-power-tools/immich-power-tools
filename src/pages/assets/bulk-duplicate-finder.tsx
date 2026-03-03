@@ -6,9 +6,11 @@ import PageLayout from '@/components/layouts/PageLayout'
 import Header from '@/components/shared/Header'
 import VirtualizedDuplicateList from '@/components/assets/duplicate-assets/VirtualizedDuplicateList'
 import AlbumTransferDialog from '@/components/assets/duplicate-assets/AlbumTransferDialog'
+import AlbumFilterDropdown from '@/components/assets/duplicate-assets/AlbumFilterDropdown'
 import Loader from '@/components/ui/loader'
 import { Button } from '@/components/ui/button'
-import { FolderSync, RefreshCw, Search, Shield, Trash2, Zap } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { FolderSync, RefreshCw, Search, Shield, Trash2, X, Zap } from 'lucide-react'
 import FloatingBar from '@/components/shared/FloatingBar'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -36,6 +38,9 @@ export default function BulkDuplicatePage() {
   const [assetAlbums, setAssetAlbums] = useState<Record<string, IAssetAlbumInfo[]>>({});
   const [albumTransferMode, setAlbumTransferMode] = useState<AlbumTransferMode>('always');
   const [pendingDedup, setPendingDedup] = useState<PendingDedup | null>(null);
+  const [searchInputText, setSearchInputText] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [selectedAlbumIds, setSelectedAlbumIds] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Load album move mode from localStorage
@@ -45,6 +50,12 @@ export default function BulkDuplicatePage() {
       setAlbumTransferMode(saved);
     }
   }, []);
+
+  // Debounce search text
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchText(searchInputText), 200);
+    return () => clearTimeout(timer);
+  }, [searchInputText]);
 
   const handleAlbumTransferModeChange = (mode: AlbumTransferMode) => {
     setAlbumTransferMode(mode);
@@ -58,6 +69,9 @@ export default function BulkDuplicatePage() {
       const duplicates = await listDuplicates();
       setDuplicates(duplicates);
       setSelectedAssets(new Set()); // Clear selection when refetching
+      setSearchInputText('');
+      setSearchText('');
+      setSelectedAlbumIds(new Set());
 
       // Fetch album data for all assets
       const allIds = duplicates.flatMap((r: IDuplicateAssetRecord) => r.assets.map(a => a.id));
@@ -86,10 +100,11 @@ export default function BulkDuplicatePage() {
   // Handle container height calculation and resize
   useEffect(() => {
     const updateHeight = () => {
-      // Calculate available height: full viewport minus header (48px)
+      // Calculate available height: full viewport minus header (48px) and filter bar (48px)
       const viewportHeight = window.innerHeight;
       const headerHeight = 48; // h-12 = 48px
-      const availableHeight = viewportHeight - headerHeight;
+      const filterBarHeight = duplicates.length > 0 ? 48 : 0;
+      const availableHeight = viewportHeight - headerHeight - filterBarHeight;
       setContainerHeight(availableHeight);
     };
 
@@ -121,10 +136,67 @@ export default function BulkDuplicatePage() {
     };
   }, [selectedAssets.size]);
 
-  // Flatten all asset IDs for selection operations
+  // Derive unique album options from assetAlbums
+  const allAlbumOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    Object.values(assetAlbums).forEach(albums => {
+      albums.forEach(a => {
+        if (!seen.has(a.albumId)) {
+          seen.set(a.albumId, a.albumName);
+        }
+      });
+    });
+    return Array.from(seen, ([value, label]) => ({ label, value }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [assetAlbums]);
+
+  const hasActiveFilters = searchText.length > 0 || selectedAlbumIds.size > 0;
+
+  // Filter duplicates based on search text and album selection
+  const filteredDuplicates = useMemo(() => {
+    if (!hasActiveFilters) return duplicates;
+
+    const lowerSearch = searchText.toLowerCase();
+
+    return duplicates.filter(record =>
+      record.assets.some(asset => {
+        // Text filter
+        if (searchText.length > 0) {
+          const fields = [
+            asset.originalFileName,
+            asset.originalPath,
+            asset.exifInfo?.city,
+            asset.exifInfo?.state,
+            asset.exifInfo?.country,
+            asset.exifInfo?.description,
+          ];
+          const textMatch = fields.some(
+            f => f && f.toLowerCase().includes(lowerSearch)
+          );
+          if (!textMatch) return false;
+        }
+
+        // Album filter
+        if (selectedAlbumIds.size > 0) {
+          const assetAlbumList = assetAlbums[asset.id] || [];
+          const albumMatch = assetAlbumList.some(a => selectedAlbumIds.has(a.albumId));
+          if (!albumMatch) return false;
+        }
+
+        return true;
+      })
+    );
+  }, [duplicates, searchText, selectedAlbumIds, assetAlbums]);
+
+  // Reset lastSelectedIndex when filter inputs change
+  useEffect(() => {
+    setLastSelectedIndex(-1);
+  }, [searchText, selectedAlbumIds]);
+
+  // Flatten all asset IDs for selection operations (from filtered view)
   const allAssetIds = useMemo(() => {
-    return duplicates.flatMap(record => record.assets.map(asset => asset.id));
-  }, [duplicates]);
+    return filteredDuplicates.flatMap(record => record.assets.map(asset => asset.id));
+  }, [filteredDuplicates]);
 
   // Calculate selected assets info for discard mode
   const selectedAssetsInfo = useMemo(() => {
@@ -252,8 +324,8 @@ export default function BulkDuplicatePage() {
 
   const handleAutoSelect = (criteria: 'lowest-quality' | 'smallest-size') => {
     const newSelection = new Set<string>();
-    
-    duplicates.forEach(record => {
+
+    filteredDuplicates.forEach(record => {
       if (record.assets.length <= 1) return; // Skip if only one asset
       
       let selectedAsset = record.assets[0];
@@ -413,7 +485,7 @@ export default function BulkDuplicatePage() {
 
     // In discard mode, the selected assets are discarded, the rest are kept
     const keptIds: string[] = [];
-    duplicates.forEach(record => {
+    filteredDuplicates.forEach(record => {
       record.assets.forEach(asset => {
         if (!selectedAssets.has(asset.id)) {
           keptIds.push(asset.id);
@@ -570,19 +642,59 @@ export default function BulkDuplicatePage() {
         )}
 
         {!loading && !error && duplicates.length > 0 && (
-          <div ref={containerRef} style={{ height: containerHeight }} className="overflow-hidden">
-            <VirtualizedDuplicateList
-              duplicates={duplicates}
-              selectedAssets={selectedAssets}
-              onAssetSelect={handleAssetSelect}
-              onDeleteRecord={handleDeleteRecord}
-              onKeepSelected={handleKeepSelected}
-              onKeepAllInRecord={handleKeepAllInRecord}
-              height={containerHeight}
-              selectionMode={selectionMode}
-              assetAlbums={assetAlbums}
-            />
-          </div>
+          <>
+            {/* Filter bar */}
+            <div className="flex items-center gap-3 px-6 py-2 border-b">
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search filename, path, location..."
+                  value={searchInputText}
+                  onChange={e => setSearchInputText(e.target.value)}
+                  className="w-64 pl-8 h-8 text-sm"
+                />
+              </div>
+              <AlbumFilterDropdown
+                options={allAlbumOptions}
+                selectedIds={selectedAlbumIds}
+                onSelectionChange={setSelectedAlbumIds}
+              />
+              <div className="flex-1" />
+              <span className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? `Showing ${filteredDuplicates.length} of ${duplicates.length} groups`
+                  : `${duplicates.length} groups`}
+              </span>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    setSearchInputText('');
+                    setSearchText('');
+                    setSelectedAlbumIds(new Set());
+                  }}
+                >
+                  <X size={14} className="mr-1" />
+                  Clear filters
+                </Button>
+              )}
+            </div>
+            <div ref={containerRef} style={{ height: containerHeight }} className="overflow-hidden">
+              <VirtualizedDuplicateList
+                duplicates={filteredDuplicates}
+                selectedAssets={selectedAssets}
+                onAssetSelect={handleAssetSelect}
+                onDeleteRecord={handleDeleteRecord}
+                onKeepSelected={handleKeepSelected}
+                onKeepAllInRecord={handleKeepAllInRecord}
+                height={containerHeight}
+                selectionMode={selectionMode}
+                assetAlbums={assetAlbums}
+              />
+            </div>
+          </>
         )}
       </div>
 

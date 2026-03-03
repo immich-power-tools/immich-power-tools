@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { VariableSizeList as List } from 'react-window'
 import { IDuplicateAssetRecord } from '@/types/asset'
 import { IAssetAlbumInfo } from '@/handlers/api/asset.handler'
@@ -79,6 +79,13 @@ export default function VirtualizedDuplicateList({
   selectionMode,
   assetAlbums
 }: VirtualizedDuplicateListProps) {
+  const listRef = useRef<List>(null)
+
+  // Reset cached row heights when the duplicates list changes (e.g. after filtering)
+  useEffect(() => {
+    listRef.current?.resetAfterIndex(0)
+  }, [duplicates])
+
   // Custom item size getter for VariableSizeList
   const getItemHeight = (index: number) => {
     if (index >= duplicates.length) return 0
@@ -107,6 +114,7 @@ export default function VirtualizedDuplicateList({
         </div>
       ) : (
         <List
+          ref={listRef}
           height={height}
           width="100%"
           itemCount={duplicates.length}
