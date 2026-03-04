@@ -1,4 +1,5 @@
 import {
+  ASSET_ALBUMS_BY_ASSETS_PATH,
   ASSET_GEO_HEATMAP_PATH,
   LIST_EMPTY_VIDEOS_PATH,
   FIND_ASSETS,
@@ -90,4 +91,13 @@ export const listEmptyVideos = async (filters: IEmptyVideosParams) => {
 
 export const listDuplicates = async () => {
   return API.get(LIST_DUPLICATES_PATH);
+}
+
+export interface IAssetAlbumInfo {
+  albumId: string;
+  albumName: string;
+}
+
+export const getAlbumsByAssetIds = async (assetIds: string[]): Promise<Record<string, IAssetAlbumInfo[]>> => {
+  return API.post(ASSET_ALBUMS_BY_ASSETS_PATH, { assetIds });
 }

@@ -14,7 +14,9 @@
     "url": "https://varunraj.in"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@ai-sdk/openai": "^3.0.29",
+    "@ai-sdk/openai-compatible": "^2.0.30",
+    "@ai-sdk/react": "^3.0.88",
     "@radix-ui/react-accordion": "^1.2.1",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-avatar": "^1.1.0",
@@ -28,7 +30,7 @@
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-scroll-area": "^1.1.0",
     "@radix-ui/react-select": "^2.1.1",
-    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
@@ -42,6 +44,7 @@
     "@types/react-autosuggest": "^10.1.11",
     "@types/react-calendar-heatmap": "^1.6.7",
     "@types/react-window": "^1.8.8",
+    "ai": "^6.0.86",
     "axios": "^1.7.4",
     "chrono-node": "^1.4.9",
     "class-variance-authority": "^0.7.0",
@@ -50,6 +53,7 @@
     "compatibility": "^1.0.1",
     "cookie": "^0.6.0",
     "date-fns": "^3.6.0",
+    "date-fns-tz": "^3.2.0",
     "drizzle-orm": "^0.33.0",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
@@ -75,14 +79,9 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "yet-another-react-lightbox": "^3.21.4",
-    "zod": "^3.24.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@semantic-release/commit-analyzer": "^13.0.0",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^10.1.7",
-    "@semantic-release/npm": "^12.0.1",
-    "@semantic-release/release-notes-generator": "^14.0.1",
     "@tanstack/eslint-plugin-query": "^5.68.0",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/leaflet": "^1.9.15",
@@ -97,7 +96,6 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.41",
-    "semantic-release-export-data": "^1.1.0",
     "tailwindcss": "^3.4.10",
     "typescript": "^5"
   }

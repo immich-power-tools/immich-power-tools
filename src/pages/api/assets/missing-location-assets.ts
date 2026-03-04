@@ -22,7 +22,6 @@ const getRowsByDates = async (startDateDate: Date, endDateDate: Date, currentUse
       duration: assets.duration,
       encodedVideoPath: assets.encodedVideoPath,
       originalFileName: assets.originalFileName,
-      
       deletedAt: assets.deletedAt,
       localDateTime: assets.localDateTime,
       exifImageWidth: exif.exifImageWidth,
@@ -55,7 +54,6 @@ const getRowsByAlbums = async (currentUser: IUser, albumId: string) => {
     duration: assets.duration,
     encodedVideoPath: assets.encodedVideoPath,
     originalFileName: assets.originalFileName,
-    
     deletedAt: assets.deletedAt,
     localDateTime: assets.localDateTime,
     exifImageWidth: exif.exifImageWidth,

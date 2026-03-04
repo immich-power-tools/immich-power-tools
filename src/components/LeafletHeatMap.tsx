@@ -26,8 +26,10 @@ const LeafletHeatMap: React.FC<LeafletHeatMapProps> = ({ filters, isDarkMode, on
 
     // Initialize the map
     const map = L.map(mapContainerRef.current, {
-      center: [0, 0],
+      center: [20, 0],
       zoom: 2,
+      minZoom: 2,
+      maxZoom: 18,
       zoomControl: true,
       scrollWheelZoom: true,
       doubleClickZoom: true,
@@ -35,6 +37,9 @@ const LeafletHeatMap: React.FC<LeafletHeatMapProps> = ({ filters, isDarkMode, on
       keyboard: true,
       dragging: true,
       touchZoom: true,
+      worldCopyJump: true,
+      maxBounds: [[-85, -Infinity], [85, Infinity]],
+      maxBoundsViscosity: 1.0,
     });
 
     mapRef.current = map;
@@ -76,10 +81,10 @@ const LeafletHeatMap: React.FC<LeafletHeatMapProps> = ({ filters, isDarkMode, on
       }
 
       // Create new heat layer with the data
-      // Convert [lng, lat] to [lat, lng, intensity] format for leaflet.heat
-      const heatData: [number, number, number][] = data.map(([lng, lat]: [number, number]) => [
+      // Convert [lon, lat] to [lat, lon, intensity] format for leaflet.heat
+      const heatData: [number, number, number][] = data.map(([lon, lat]: [number, number]) => [
         lat, // latitude first for leaflet.heat
-        lng, // longitude second
+        lon, // longitude second
         1    // intensity (weight)
       ]);
 

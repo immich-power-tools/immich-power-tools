@@ -10,13 +10,12 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { loginUser } from "@/handlers/api/user.handler"
 import { useConfig } from "@/contexts/ConfigContext"
 import { IUser } from "@/types/user"
 import Head from "next/head"
-import { Tooltip } from "../ui/tooltip"
-import { set } from "date-fns"
+import { useRouter } from "next/router"
 
 export const description =
   "A login form with email and password. There's an option to login with Google and a link to sign up if you don't have an account."
@@ -27,7 +26,8 @@ interface ILoginFormProps {
 export function LoginForm(
   { onLogin }: ILoginFormProps
 ) {
-  const { exImmichUrl } = useConfig()
+  const { exImmichUrl, oauthEnabled, oauthButtonText } = useConfig()
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -35,28 +35,43 @@ export function LoginForm(
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Check for error in query parameters
+  useEffect(() => {
+    if (router.query.error) {
+      setErrorMessage(router.query.error as string);
+
+    // Clear the error from the URL without refreshing
+      const { error, ...rest } = router.query;
+      router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+    }
+  }, [router.query.error]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value })
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => { 
-    e.preventDefault() 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setLoading(true)
     setErrorMessage(null)
     loginUser(formData.email, formData.password)
-    .then(onLogin)
-    .catch((error) => {
-      setErrorMessage(error.message)
+      .then(onLogin)
+      .catch((error) => {
+        setErrorMessage(error.message)
     }).finally(() => {
-      setLoading(false)
-    })
+        setLoading(false)
+      })
+  }
+
+  const handleOAuthLogin = () => {
+    window.location.assign("/api/auth/oauth/authorize")
   }
 
   return (
     <>
-    <Head>
-      <title>Immich Power Tools - Login</title>
-    </Head>
+      <Head>
+        <title>Immich Power Tools - Login</title>
+      </Head>
       <div className="relative flex min-h-screen justify-center flex-col bg-background">
         <Card className="mx-auto max-w-sm">
           <CardHeader>
@@ -98,12 +113,28 @@ export function LoginForm(
               <Button type="submit" className="w-full" disabled={loading}>
                 Login
               </Button>
-              <Button variant="outline" className="w-full" disabled={true}>
-                Login with OAuth (Comming Soon)
-              </Button>
-              <p className="text-xs text-gray-400 text-center">
-                Or Use <code>IMMICH_API_KEY</code> in your environment to use API Key instead of password.
-              </p>
+              {oauthEnabled && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleOAuthLogin}
+                  >
+                    {oauthButtonText}
+                  </Button>
+                </>
+              )}
             </form>
           </CardContent>
         </Card>

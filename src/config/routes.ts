@@ -34,6 +34,7 @@ export const DELETE_ALBUMS_PATH = BASE_API_ENDPOINT + "/albums/delete";
 export const ADD_ASSETS_TO_ALBUM_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/albums/" + id + "/assets";
 export const MERGE_ALBUMS_PATH = BASE_API_ENDPOINT + "/albums/merge";
 // Assets
+export const ASSET_ALBUMS_BY_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/albums-by-assets";
 export const LIST_MISSING_LOCATION_DATES_PATH = BASE_API_ENDPOINT + "/assets/missing-location-dates";
 export const LIST_MISSING_LOCATION_ALBUMS_PATH = BASE_API_ENDPOINT + "/assets/missing-location-albums";
 export const LIST_MISSING_LOCATION_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/missing-location-assets";

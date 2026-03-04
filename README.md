@@ -60,8 +60,10 @@ EXTERNAL_IMMICH_URL = "https://external-address" # External address of immich
 DB_PORT = "5432"
 DB_HOST = "immich_postgres"
 
-# Optional
-GEMINI_API_KEY= # Gemini API Key
+# Optional - AI Configuration for Smart Search (Find)
+AI_API_KEY=your_api_key_here # API key for your OpenAI-compatible provider
+AI_BASE_URL="https://api.openai.com/v1" # e.g. https://api.openai.com/v1 (OpenAI), https://api.groq.com/openai/v1 (Groq), http://host.docker.internal:11434/v1 (Ollama)
+AI_MODEL="gpt-4o-mini" # e.g. gpt-4o-mini, llama-3.1-8b-instant, llama3.1
 ```
 Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
 
@@ -95,7 +97,12 @@ Copy paste the `.env.example` to `.env` and fill in the values.
   DB_PASSWORD = "" # Postgres Database Password
   DB_HOST = "" # Postgres Host (IP address or hostname of the database)
   DB_PORT = "" # Postgres Port number (Default: 5432)
-  DB_DATABASE_NAME = "" # Name of the database 
+  DB_DATABASE_NAME="" # Name of the database 
+  
+  # Optional - AI Configuration for Smart Search (Find)
+  AI_API_KEY="" # API key for your OpenAI-compatible provider
+  AI_BASE_URL="https://api.openai.com/v1" # Base URL for OpenAI-compatible API
+  AI_MODEL="gpt-4o-mini" # Model used for parsing search queries in "Find"
 ```
 > [!NOTE]  
 > Make sure you have postgres port exposed on you machine.
@@ -148,10 +155,15 @@ Google Maps Javascript API Key is used to render the maps layer for heatmap. Whe
 
   > Code where heatmap data is plotted: [src/pages/assets/geo-heatmap.tsx:32](./src/pages/assets/geo-heatmap.tsx#L32-L35)
 
-- [Gemini](https://gemini.google.com/) for rewind video generation
-Google Gemini 1.5 Flash model is used for parsing your search query in "Find" page. We do not send any personal data to Gemini, only data that is sent to Gemini is your search query and rest of the querying happes using [Immich's Smart Search API](https://immich.app/docs/api/search-smart)
+- OpenAI-compatible AI provider for smart query parsing in Find
+Any OpenAI-compatible API can be used for parsing your search query in the "Find" page. You can use standard providers like **OpenAI** and **Groq**, or run local models using **Ollama** or **LM Studio**. We do not send any personal library data to the AI provider; only your search text is sent for parsing. The actual asset querying uses [Immich's Smart Search API](https://immich.app/docs/api/search-smart).
 
-  > Code where Gemini is used: [src/helpers/gemini.helper.ts](./src/helpers/gemini.helper.ts)
+  > Code where AI parsing is used: [src/helpers/ai.helper.ts](./src/helpers/ai.helper.ts)
+
+  **Examples:**
+  - **OpenAI:** `AI_BASE_URL=https://api.openai.com/v1`, `AI_MODEL=gpt-4o-mini`
+  - **Groq:** `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.1-8b-instant`
+  - **Ollama (local):** `AI_BASE_URL=http://localhost:11434/v1` (or `http://host.docker.internal:11434/v1` if running Power Tools in Docker), `AI_MODEL=llama3.1`
 
 ## Contributing
 

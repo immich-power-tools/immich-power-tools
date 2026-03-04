@@ -1,18 +1,30 @@
-import { listDuplicates, deleteAssets, updateAssets } from "@/handlers/api/asset.handler";
+import { listDuplicates, deleteAssets, updateAssets, getAlbumsByAssetIds, IAssetAlbumInfo } from "@/handlers/api/asset.handler";
+import { addAssetToAlbum } from "@/handlers/api/album.handler";
 import { IDuplicateAssetRecord } from "@/types/asset";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import PageLayout from '@/components/layouts/PageLayout'
 import Header from '@/components/shared/Header'
 import VirtualizedDuplicateList from '@/components/assets/duplicate-assets/VirtualizedDuplicateList'
+import AlbumTransferDialog from '@/components/assets/duplicate-assets/AlbumTransferDialog'
+import AlbumFilterDropdown from '@/components/assets/duplicate-assets/AlbumFilterDropdown'
 import Loader from '@/components/ui/loader'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Search, Shield, Trash2, Zap } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { FolderSync, RefreshCw, Search, Shield, Trash2, X, Zap } from 'lucide-react'
 import FloatingBar from '@/components/shared/FloatingBar'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 import { toast } from '@/components/ui/use-toast'
 import { humanizeBytes } from '@/helpers/string.helper'
+
+type AlbumTransferMode = 'always' | 'never' | 'ask';
+
+interface PendingDedup {
+  keptIds: string[];
+  discardedIds: string[];
+  albumsToTransfer: IAssetAlbumInfo[];
+}
 
 export default function BulkDuplicatePage() {
   const [duplicates, setDuplicates] = useState<IDuplicateAssetRecord[]>([]);
@@ -23,7 +35,32 @@ export default function BulkDuplicatePage() {
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
   const [containerHeight, setContainerHeight] = useState<number>(600);
   const [selectionMode, setSelectionMode] = useState<'keep' | 'discard'>('keep');
+  const [assetAlbums, setAssetAlbums] = useState<Record<string, IAssetAlbumInfo[]>>({});
+  const [albumTransferMode, setAlbumTransferMode] = useState<AlbumTransferMode>('always');
+  const [pendingDedup, setPendingDedup] = useState<PendingDedup | null>(null);
+  const [searchInputText, setSearchInputText] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [selectedAlbumIds, setSelectedAlbumIds] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load album move mode from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('duplicateFinderAlbumTransfer');
+    if (saved === 'always' || saved === 'never' || saved === 'ask') {
+      setAlbumTransferMode(saved);
+    }
+  }, []);
+
+  // Debounce search text
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchText(searchInputText), 200);
+    return () => clearTimeout(timer);
+  }, [searchInputText]);
+
+  const handleAlbumTransferModeChange = (mode: AlbumTransferMode) => {
+    setAlbumTransferMode(mode);
+    localStorage.setItem('duplicateFinderAlbumTransfer', mode);
+  };
 
   const fetchDuplicates = async () => {
     setLoading(true);
@@ -32,6 +69,18 @@ export default function BulkDuplicatePage() {
       const duplicates = await listDuplicates();
       setDuplicates(duplicates);
       setSelectedAssets(new Set()); // Clear selection when refetching
+      setSearchInputText('');
+      setSearchText('');
+      setSelectedAlbumIds(new Set());
+
+      // Fetch album data for all assets
+      const allIds = duplicates.flatMap((r: IDuplicateAssetRecord) => r.assets.map(a => a.id));
+      if (allIds.length > 0) {
+        const albums = await getAlbumsByAssetIds(allIds);
+        setAssetAlbums(albums);
+      } else {
+        setAssetAlbums({});
+      }
     } catch (error: any) {
       setError(error.message || 'Failed to load duplicate assets');
       toast({
@@ -51,10 +100,11 @@ export default function BulkDuplicatePage() {
   // Handle container height calculation and resize
   useEffect(() => {
     const updateHeight = () => {
-      // Calculate available height: full viewport minus header (48px)
+      // Calculate available height: full viewport minus header (48px) and filter bar (48px)
       const viewportHeight = window.innerHeight;
       const headerHeight = 48; // h-12 = 48px
-      const availableHeight = viewportHeight - headerHeight;
+      const filterBarHeight = duplicates.length > 0 ? 48 : 0;
+      const availableHeight = viewportHeight - headerHeight - filterBarHeight;
       setContainerHeight(availableHeight);
     };
 
@@ -86,10 +136,67 @@ export default function BulkDuplicatePage() {
     };
   }, [selectedAssets.size]);
 
-  // Flatten all asset IDs for selection operations
+  // Derive unique album options from assetAlbums
+  const allAlbumOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    Object.values(assetAlbums).forEach(albums => {
+      albums.forEach(a => {
+        if (!seen.has(a.albumId)) {
+          seen.set(a.albumId, a.albumName);
+        }
+      });
+    });
+    return Array.from(seen, ([value, label]) => ({ label, value }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [assetAlbums]);
+
+  const hasActiveFilters = searchText.length > 0 || selectedAlbumIds.size > 0;
+
+  // Filter duplicates based on search text and album selection
+  const filteredDuplicates = useMemo(() => {
+    if (!hasActiveFilters) return duplicates;
+
+    const lowerSearch = searchText.toLowerCase();
+
+    return duplicates.filter(record =>
+      record.assets.some(asset => {
+        // Text filter
+        if (searchText.length > 0) {
+          const fields = [
+            asset.originalFileName,
+            asset.originalPath,
+            asset.exifInfo?.city,
+            asset.exifInfo?.state,
+            asset.exifInfo?.country,
+            asset.exifInfo?.description,
+          ];
+          const textMatch = fields.some(
+            f => f && f.toLowerCase().includes(lowerSearch)
+          );
+          if (!textMatch) return false;
+        }
+
+        // Album filter
+        if (selectedAlbumIds.size > 0) {
+          const assetAlbumList = assetAlbums[asset.id] || [];
+          const albumMatch = assetAlbumList.some(a => selectedAlbumIds.has(a.albumId));
+          if (!albumMatch) return false;
+        }
+
+        return true;
+      })
+    );
+  }, [duplicates, searchText, selectedAlbumIds, assetAlbums]);
+
+  // Reset lastSelectedIndex when filter inputs change
+  useEffect(() => {
+    setLastSelectedIndex(-1);
+  }, [searchText, selectedAlbumIds]);
+
+  // Flatten all asset IDs for selection operations (from filtered view)
   const allAssetIds = useMemo(() => {
-    return duplicates.flatMap(record => record.assets.map(asset => asset.id));
-  }, [duplicates]);
+    return filteredDuplicates.flatMap(record => record.assets.map(asset => asset.id));
+  }, [filteredDuplicates]);
 
   // Calculate selected assets info for discard mode
   const selectedAssetsInfo = useMemo(() => {
@@ -217,8 +324,8 @@ export default function BulkDuplicatePage() {
 
   const handleAutoSelect = (criteria: 'lowest-quality' | 'smallest-size') => {
     const newSelection = new Set<string>();
-    
-    duplicates.forEach(record => {
+
+    filteredDuplicates.forEach(record => {
       if (record.assets.length <= 1) return; // Skip if only one asset
       
       let selectedAsset = record.assets[0];
@@ -259,38 +366,91 @@ export default function BulkDuplicatePage() {
     });
   };
 
-  const handleDeleteAllSelected = async () => {
-    if (selectedAssets.size === 0 || selectionMode !== 'discard') return;
+  // Compute albums that are only on discarded assets (not already on kept assets)
+  const getAlbumsToTransfer = useCallback((keptIds: string[], discardedIds: string[]): IAssetAlbumInfo[] => {
+    const keptAlbumIds = new Set<string>();
+    keptIds.forEach(id => {
+      (assetAlbums[id] || []).forEach(a => keptAlbumIds.add(a.albumId));
+    });
 
+    const seen = new Set<string>();
+    const result: IAssetAlbumInfo[] = [];
+    discardedIds.forEach(id => {
+      (assetAlbums[id] || []).forEach(a => {
+        if (!keptAlbumIds.has(a.albumId) && !seen.has(a.albumId)) {
+          seen.add(a.albumId);
+          result.push(a);
+        }
+      });
+    });
+    return result;
+  }, [assetAlbums]);
+
+  // Core dedup execution: move albums then delete
+  const executeDedup = async (
+    keptIds: string[],
+    discardedIds: string[],
+    albumIdsToTransfer: string[]
+  ) => {
     setIsDeleting(true);
     try {
-      const selectedAssetIds = Array.from(selectedAssets);
-      
-      // Delete all selected assets
-      await deleteAssets(selectedAssetIds);
+      // Move albums to kept assets (only add each asset to albums it's not already in)
+      const transferCalls: Promise<unknown>[] = [];
+      const albumIdsToTransferSet = new Set(albumIdsToTransfer);
+      for (const albumId of albumIdsToTransferSet) {
+        const assetsToAdd = keptIds.filter(id => {
+          const existing = assetAlbums[id] || [];
+          return !existing.some(a => a.albumId === albumId);
+        });
+        if (assetsToAdd.length > 0) {
+          transferCalls.push(addAssetToAlbum(albumId, assetsToAdd));
+        }
+      }
+      await Promise.all(transferCalls);
 
-      // Update duplicates: remove deleted assets and clean up empty records
-      setDuplicates(prev => {
-        const updatedDuplicates = prev.map(record => ({
-          ...record,
-          assets: record.assets.filter(asset => !selectedAssets.has(asset.id))
-        })).filter(record => record.assets.length > 0);
+      // Mark kept assets as non-duplicate
+      if (keptIds.length > 0) {
+        await updateAssets({ ids: keptIds, duplicateId: null });
+      }
 
-        return updatedDuplicates;
+      // Delete discarded assets
+      if (discardedIds.length > 0) {
+        await deleteAssets(discardedIds);
+      }
+
+      const removedIds = new Set([...keptIds, ...discardedIds]);
+      let discardedSize = 0;
+      const discardedSet = new Set(discardedIds);
+      duplicates.forEach(r => r.assets.forEach(a => {
+        if (discardedSet.has(a.id)) discardedSize += a.exifInfo.fileSizeInByte;
+      }));
+
+      setDuplicates(prev =>
+        prev.map(r => ({
+          ...r,
+          assets: r.assets.filter(a => !removedIds.has(a.id))
+        })).filter(r => r.assets.length > 0)
+      );
+
+      setSelectedAssets(prev => {
+        const next = new Set(prev);
+        removedIds.forEach(id => next.delete(id));
+        return next;
       });
-
-      // Clear selection
-      setSelectedAssets(new Set());
       setLastSelectedIndex(-1);
+
+      const transferMsg = albumIdsToTransfer.length > 0
+        ? ` Moved ${albumIdsToTransfer.length} album(s).`
+        : '';
 
       toast({
         title: "Success",
-        description: `Successfully deleted ${selectedAssetIds.length} selected assets${selectedAssetsInfo.totalSize > 0 ? ` and saved ${humanizeBytes(selectedAssetsInfo.totalSize)} of storage` : ''}.`,
+        description: `Kept ${keptIds.length} asset(s), deleted ${discardedIds.length}.${transferMsg}${discardedSize > 0 ? ` Saved ${humanizeBytes(discardedSize)}.` : ''}`,
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete selected assets. Please try again.",
+        description: error.message || "Failed to process assets. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -298,51 +458,46 @@ export default function BulkDuplicatePage() {
     }
   };
 
-  const handleKeepSelected = async (record: IDuplicateAssetRecord, selectedIds: string[], unselectedIds: string[]) => {
-    setIsDeleting(true);
-    try {
-      const unselectedSize = record.assets
-        .filter(asset => unselectedIds.includes(asset.id))
-        .reduce((sum, asset) => sum + asset.exifInfo.fileSizeInByte, 0);
+  // Core dedup execution wrapped in useCallback to avoid stale closures
+  const executeDedupCb = useCallback(executeDedup, []);
 
-      // First, update selected assets to remove duplicateId (mark as kept)
-      if (selectedIds.length > 0) {
-        await updateAssets({
-          ids: selectedIds,
-          duplicateId: null
-        });
-      }
+  // Initiate dedup with album move logic
+  const initiateDedup = useCallback((
+    keptIds: string[],
+    discardedIds: string[]
+  ) => {
+    const albumsToTransfer = getAlbumsToTransfer(keptIds, discardedIds);
 
-      // Then, delete unselected assets
-      if (unselectedIds.length > 0) {
-        await deleteAssets(unselectedIds);
-      }
-
-      // Remove the entire record from duplicates (since selected assets are no longer duplicates)
-      setDuplicates(prev => prev.filter(r => r.duplicateId !== record.duplicateId));
-
-      // Remove all assets from this record from selection
-      setSelectedAssets(prev => {
-        const newSelection = new Set(prev);
-        [...selectedIds, ...unselectedIds].forEach(id => newSelection.delete(id));
-        return newSelection;
-      });
-
-      setLastSelectedIndex(-1);
-
-      toast({
-        title: "Success",
-        description: `Successfully kept ${selectedIds.length} assets and deleted ${unselectedIds.length} duplicates. Storage saved: ${humanizeBytes(unselectedSize)}.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process selected assets. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
+    if (albumsToTransfer.length === 0 || albumTransferMode === 'never') {
+      executeDedupCb(keptIds, discardedIds, []);
+    } else if (albumTransferMode === 'always') {
+      executeDedupCb(keptIds, discardedIds, albumsToTransfer.map(a => a.albumId));
+    } else {
+      // 'ask' mode
+      setPendingDedup({ keptIds, discardedIds, albumsToTransfer });
     }
+  }, [albumTransferMode, getAlbumsToTransfer, executeDedupCb]);
+
+  const handleDeleteAllSelected = async () => {
+    if (selectedAssets.size === 0 || selectionMode !== 'discard') return;
+
+    const selectedAssetIds = Array.from(selectedAssets);
+
+    // In discard mode, the selected assets are discarded, the rest are kept
+    const keptIds: string[] = [];
+    filteredDuplicates.forEach(record => {
+      record.assets.forEach(asset => {
+        if (!selectedAssets.has(asset.id)) {
+          keptIds.push(asset.id);
+        }
+      });
+    });
+
+    initiateDedup(keptIds, selectedAssetIds);
+  };
+
+  const handleKeepSelected = async (_record: IDuplicateAssetRecord, keptIds: string[], discardedIds: string[]) => {
+    initiateDedup(keptIds, discardedIds);
   };
 
 
@@ -388,7 +543,41 @@ export default function BulkDuplicatePage() {
                 </Button>
               </div>
             </div>
-            
+
+            {/* Album Move Mode Button Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <FolderSync size={14} className="inline mr-1" />
+                Move Albums:
+              </span>
+              <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                <Button
+                  variant={albumTransferMode === 'always' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleAlbumTransferModeChange('always')}
+                  className="rounded-none border-0"
+                >
+                  Always
+                </Button>
+                <Button
+                  variant={albumTransferMode === 'ask' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleAlbumTransferModeChange('ask')}
+                  className="rounded-none border-0"
+                >
+                  Ask
+                </Button>
+                <Button
+                  variant={albumTransferMode === 'never' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleAlbumTransferModeChange('never')}
+                  className="rounded-none border-0"
+                >
+                  Never
+                </Button>
+              </div>
+            </div>
+
             {/* Refresh Button */}
             <Button
               onClick={fetchDuplicates}
@@ -453,18 +642,59 @@ export default function BulkDuplicatePage() {
         )}
 
         {!loading && !error && duplicates.length > 0 && (
-          <div ref={containerRef} style={{ height: containerHeight }} className="overflow-hidden">
-            <VirtualizedDuplicateList
-              duplicates={duplicates}
-              selectedAssets={selectedAssets}
-              onAssetSelect={handleAssetSelect}
-              onDeleteRecord={handleDeleteRecord}
-              onKeepSelected={handleKeepSelected}
-              onKeepAllInRecord={handleKeepAllInRecord}
-              height={containerHeight}
-              selectionMode={selectionMode}
-            />
-          </div>
+          <>
+            {/* Filter bar */}
+            <div className="flex items-center gap-3 px-6 py-2 border-b">
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search filename, path, location..."
+                  value={searchInputText}
+                  onChange={e => setSearchInputText(e.target.value)}
+                  className="w-64 pl-8 h-8 text-sm"
+                />
+              </div>
+              <AlbumFilterDropdown
+                options={allAlbumOptions}
+                selectedIds={selectedAlbumIds}
+                onSelectionChange={setSelectedAlbumIds}
+              />
+              <div className="flex-1" />
+              <span className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? `Showing ${filteredDuplicates.length} of ${duplicates.length} groups`
+                  : `${duplicates.length} groups`}
+              </span>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    setSearchInputText('');
+                    setSearchText('');
+                    setSelectedAlbumIds(new Set());
+                  }}
+                >
+                  <X size={14} className="mr-1" />
+                  Clear filters
+                </Button>
+              )}
+            </div>
+            <div ref={containerRef} style={{ height: containerHeight }} className="overflow-hidden">
+              <VirtualizedDuplicateList
+                duplicates={filteredDuplicates}
+                selectedAssets={selectedAssets}
+                onAssetSelect={handleAssetSelect}
+                onDeleteRecord={handleDeleteRecord}
+                onKeepSelected={handleKeepSelected}
+                onKeepAllInRecord={handleKeepAllInRecord}
+                height={containerHeight}
+                selectionMode={selectionMode}
+                assetAlbums={assetAlbums}
+              />
+            </div>
+          </>
         )}
       </div>
 
@@ -546,6 +776,24 @@ export default function BulkDuplicatePage() {
             </div>
           </div>
         </FloatingBar>
+      )}
+
+      {pendingDedup && (
+        <AlbumTransferDialog
+          open={true}
+          onClose={() => setPendingDedup(null)}
+          albums={pendingDedup.albumsToTransfer}
+          onSkip={() => {
+            const { keptIds, discardedIds } = pendingDedup;
+            setPendingDedup(null);
+            executeDedup(keptIds, discardedIds, []);
+          }}
+          onTransfer={(albumIds) => {
+            const { keptIds, discardedIds } = pendingDedup;
+            setPendingDedup(null);
+            executeDedup(keptIds, discardedIds, albumIds);
+          }}
+        />
       )}
     </PageLayout>
   )
