@@ -92,12 +92,13 @@ export default async function handler(
     }
 
     // Reassign each face via the Immich API
+    // PUT /api/faces/{personId} with body { id: faceId }
     const results = await Promise.allSettled(
       facesToMove.map((face) =>
-        fetch(`${ENV.IMMICH_URL}/api/faces/${face.id}`, {
+        fetch(`${ENV.IMMICH_URL}/api/faces/${newPersonId}`, {
           method: "PUT",
           headers: getUserHeaders(currentUser),
-          body: JSON.stringify({ id: newPersonId }),
+          body: JSON.stringify({ id: face.id }),
         }).then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r;
