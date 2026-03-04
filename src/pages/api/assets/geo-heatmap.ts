@@ -14,17 +14,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-
-const dbAssets = await db.select({
+  let query = db.select({
     assetId: assets.id,
     latitude: exif.latitude,
     longitude: exif.longitude,
   }).from(assets)
-  .innerJoin(exif, eq(assets.id, exif.assetId))
-  .innerJoin(albumsAssetsAssets, eq(assets.id, albumsAssetsAssets.assetId))
-  .innerJoin(assetFaces, eq(albumsAssetsAssets.assetId, assetFaces.assetId))
-  .innerJoin(person, eq(assetFaces.personId, person.id))
-  .where(
+    .innerJoin(exif, eq(assets.id, exif.assetId))
+    .$dynamic();
+
+  // Only join album tables when albumIds filter is provided
+  if (albumIds?.length > 0) {
+    query = query.innerJoin(albumsAssetsAssets, eq(assets.id, albumsAssetsAssets.assetId));
+  }
+
+  // Only join person/face tables when peopleIds filter is provided
+  if (peopleIds?.length > 0) {
+    query = query
+      .innerJoin(assetFaces, eq(assets.id, assetFaces.assetId))
+      .innerJoin(person, eq(assetFaces.personId, person.id));
+  }
+
+  const dbAssets = await query.where(
     and(
       eq(assets.ownerId, currentUser.id),
       isNotNull(exif.latitude),
