@@ -26,7 +26,7 @@ export interface IFace {
 export interface IFaceCluster {
   clusterId:    number;
   count:        number;
-  previewFaces: IFace[];
+  faces:        IFace[];
   faceIds:      string[];
 }
 

@@ -146,8 +146,7 @@ export default async function handler(
     const result = clusters.map((cluster, index) => ({
       clusterId: index,
       count: cluster.faces.length,
-      // Return a few representative faces (first 6) plus all face IDs
-      previewFaces: cluster.faces.slice(0, 6).map(stripEmbedding),
+      faces: cluster.faces.map(stripEmbedding),
       faceIds: cluster.faces.map((f) => f.id),
     }));
 
@@ -156,7 +155,7 @@ export default async function handler(
       result.push({
         clusterId: result.length,
         count: withoutEmbeddings.length,
-        previewFaces: withoutEmbeddings.slice(0, 6).map((f) => ({
+        faces: withoutEmbeddings.map((f) => ({
           id: f.id,
           assetId: f.assetId,
           personId: f.personId,
