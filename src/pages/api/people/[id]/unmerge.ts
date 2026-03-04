@@ -98,6 +98,9 @@ export default async function handler(
           method: "PUT",
           headers: getUserHeaders(currentUser),
           body: JSON.stringify({ id: newPersonId }),
+        }).then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r;
         })
       )
     );
@@ -124,6 +127,7 @@ export default async function handler(
       targetPersonId: newPersonId,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error?.message });
+    console.error("Unmerge faces error:", error);
+    res.status(500).json({ error: "Failed to unmerge faces" });
   }
 }

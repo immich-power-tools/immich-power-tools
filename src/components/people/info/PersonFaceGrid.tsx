@@ -5,7 +5,7 @@ import { listPersonFaceClusters, searchPeople, unmergeFaces } from "@/handlers/a
 import { IFace, IFaceCluster, IFaceClustersResponse, IPerson } from "@/types/person";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Check, ExternalLink, Eye } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Loader from "@/components/ui/loader";
 import { useToast } from "@/components/ui/use-toast";
@@ -330,13 +330,26 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
   const [searchResults, setSearchResults] = useState<IPerson[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [threshold, setThreshold] = useState(0.65);
+  const [debouncedThreshold, setDebouncedThreshold] = useState(0.65);
   const [openClusterId, setOpenClusterId] = useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const { toast } = useToast();
   const { exImmichUrl } = useConfig();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleThresholdChange = useCallback((value: number) => {
+    setThreshold(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedThreshold(value), 500);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
 
   const fetchClusters = () => {
     setLoading(true);
-    listPersonFaceClusters(personId, threshold)
+    listPersonFaceClusters(personId, debouncedThreshold)
       .then((result) => {
         setData(result);
         setSelectedClusters(new Set());
@@ -349,7 +362,7 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
 
   useEffect(() => {
     fetchClusters();
-  }, [personId, threshold]);
+  }, [personId, debouncedThreshold]);
 
   const clusters = data?.clusters || [];
 
@@ -373,6 +386,15 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
 
   const openUnmergeDialog = (faceIds: string[]) => {
     setDialogFaceIds(faceIds);
+    if (faceIds.length > 1) {
+      setConfirmOpen(true);
+    } else {
+      setDialogOpen(true);
+    }
+  };
+
+  const confirmAndProceed = () => {
+    setConfirmOpen(false);
     setDialogOpen(true);
   };
 
@@ -408,6 +430,28 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
       .then(setSearchResults)
       .finally(() => setSearchLoading(false));
   };
+
+  const confirmDialog = (
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Unmerge</DialogTitle>
+          <DialogDescription>
+            You are about to unmerge {dialogFaceIds.length} faces from {personName || "this person"}.
+            This will reassign them to a different person.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirmAndProceed}>
+            Continue
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   const unmergeDialog = (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -485,6 +529,7 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
             exImmichUrl={exImmichUrl}
             personName={personName}
           />
+          {confirmDialog}
           {unmergeDialog}
         </>
       );
@@ -509,7 +554,7 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
               min="0.3"
               max="0.95"
               value={threshold}
-              onChange={(e) => setThreshold(parseFloat(e.target.value))}
+              onChange={(e) => handleThresholdChange(parseFloat(e.target.value))}
               className="w-20 h-7 text-xs"
             />
           </div>
@@ -552,6 +597,7 @@ export default function PersonFaceGrid({ personId, personName }: PersonFaceGridP
         ))}
       </div>
 
+      {confirmDialog}
       {unmergeDialog}
     </div>
   );

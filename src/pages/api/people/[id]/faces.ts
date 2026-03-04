@@ -177,7 +177,8 @@ export default async function handler(
       clusters: result,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error?.message });
+    console.error("Face clustering error:", error);
+    res.status(500).json({ error: "Failed to cluster faces" });
   }
 }
 
