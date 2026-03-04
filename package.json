@@ -82,11 +82,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@semantic-release/commit-analyzer": "^13.0.0",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^10.1.7",
-    "@semantic-release/npm": "^12.0.1",
-    "@semantic-release/release-notes-generator": "^14.0.1",
     "@tanstack/eslint-plugin-query": "^5.68.0",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/leaflet": "^1.9.15",
@@ -101,7 +96,6 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.41",
-    "semantic-release-export-data": "^1.1.0",
     "tailwindcss": "^3.4.10",
     "typescript": "^5"
   }
