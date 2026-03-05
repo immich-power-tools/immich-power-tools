@@ -1,7 +1,7 @@
-import { LIST_PEOPLE_PATH, MERGE_PERSON_PATH, SEARCH_PEOPLE_PATH, SIMILAR_FACES_PATH, UPDATE_PERSON_PATH } from "@/config/routes"
+import { LIST_PEOPLE_PATH, MERGE_PERSON_PATH, PERSON_FACES_PATH, SEARCH_PEOPLE_PATH, SIMILAR_FACES_PATH, UNMERGE_FACES_PATH, UPDATE_PERSON_PATH } from "@/config/routes"
 import { cleanUpPerson } from "@/helpers/person.helper";
 import API from "@/lib/api"
-import { IPeopleListResponse, IPerson } from "@/types/person"
+import { IFaceClustersResponse, IPeopleListResponse, IPerson } from "@/types/person"
 
 type ISortField = "assetCount" | "updatedAt" | "createdAt";
 
@@ -49,4 +49,12 @@ export const listSimilarFaces = (id: string, params: IListSimilarFacesParams) =>
   const { threshold, name } = params;
   return API.get(SIMILAR_FACES_PATH(id), { threshold: threshold, name: name })
     .then((response) => response.map((person: any) => cleanUpPerson(person, true)));
+}
+
+export const listPersonFaceClusters = (id: string, threshold?: number): Promise<IFaceClustersResponse> => {
+  return API.get(PERSON_FACES_PATH(id), threshold ? { threshold } : {});
+}
+
+export const unmergeFaces = (id: string, faceIds: string[], targetPersonId?: string) => {
+  return API.post(UNMERGE_FACES_PATH(id), { faceIds, targetPersonId });
 }
