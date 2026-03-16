@@ -28,6 +28,8 @@ ENV VERSION=$VERSION
 
 ENV NODE_ENV=production
 
+RUN apk add --no-cache curl
+
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
 
@@ -52,4 +54,8 @@ ENV PORT=3000
 # Uncomment the following line in case you want to disable telemetry.
 ENV NEXT_TELEMETRY_DISABLED=1
 
+ENV HOSTNAME=0.0.0.0
+
 CMD ["node", "server.js"]
+
+HEALTHCHECK CMD curl --fail http://localhost:3000/api/health || exit 1
