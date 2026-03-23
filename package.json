@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:=3000} -H ${HOST:=0.0.0.0}",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate --config=drizzle.app.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.app.config.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.app.config.ts",
+    "db:push": "drizzle-kit push --config=drizzle.app.config.ts"
   },
   "author": {
     "name": "Varun Raj Manoharan",
