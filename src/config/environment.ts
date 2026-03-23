@@ -15,8 +15,9 @@ export const ENV = {
   AI_API_KEY: process.env.AI_API_KEY as string,
   AI_BASE_URL: (process.env.AI_BASE_URL || 'https://api.openai.com/v1') as string,
   AI_MODEL: process.env.AI_MODEL as string,
-  IMMICH_SHARE_LINK_KEY: process.env.IMMICH_SHARE_LINK_KEY as string,
   POWER_TOOLS_ENDPOINT_URL: process.env.POWER_TOOLS_ENDPOINT_URL as string,
+  // App SQLite database path (defaults to ./data/app.db)
+  APP_DB_PATH: process.env.APP_DB_PATH as string | undefined,
   // OAuth configuration
   OAUTH_ENABLED: process.env.OAUTH_ENABLED === 'true',
   OAUTH_BUTTON_TEXT: (process.env.OAUTH_BUTTON_TEXT || 'Login with OAuth') as string,

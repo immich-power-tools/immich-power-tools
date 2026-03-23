@@ -1,7 +1,9 @@
 // pages/api/proxy.js
 
 import { ENV } from '@/config/environment';
-import { getUserHeaders } from '@/helpers/user.helper';
+import { appDb } from '@/db';
+import { apiKeys } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { verify } from 'jsonwebtoken';
 import { NextApiRequest, NextApiResponse } from 'next'
 
@@ -16,16 +18,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method Not Allowed' })
   }
-  
+
   const { id, size, token, p } = req.query;
   if (!token) {
     return res.status(401).json({ message: 'Unauthorized' })
   }
 
+  let userId: string;
   try {
-    verify(token as string, ENV.JWT_SECRET);
+    const previewDecoded = verify(token as string, ENV.JWT_SECRET) as { token: string };
+    const mainDecoded = verify(previewDecoded.token, ENV.JWT_SECRET) as { userId: string };
+    userId = mainDecoded.userId;
   } catch (error) {
     return res.status(401).json({ message: 'Token is invalid' })
+  }
+
+  const [keyRow] = await appDb
+    .select({ secret: apiKeys.secret })
+    .from(apiKeys)
+    .where(and(eq(apiKeys.userId, userId), eq(apiKeys.purpose, "share")))
+    .limit(1);
+
+  if (!keyRow) {
+    return res.status(403).json({ message: 'Share key not configured. Please set up sharing in Power Tools.' });
   }
 
   const resource = p === "true" ? "people" : "assets";
@@ -37,9 +52,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Forward the request to the target API
     const response = await fetch(targetUrl, {
       method: 'GET',
-      headers: getUserHeaders({ isUsingShareKey: true }, {
+      headers: {
         'Content-Type': 'application/octet-stream',
-      }),
+        'x-api-key': keyRow.secret,
+      },
     })
 
     if (!response.ok) {
