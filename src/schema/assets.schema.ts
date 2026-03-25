@@ -11,7 +11,6 @@ export const assets = pgTable('asset', {
   fileModifiedAt: timestamp('fileModifiedAt', { withTimezone: true }).notNull(),
   isFavorite: boolean('isFavorite').default(false).notNull(),
   duration: varchar('duration'),
-  encodedVideoPath: varchar('encodedVideoPath').default(''),
   // checksum: bytea('checksum').notNull(),
   visibility: varchar('visibility').default('timeline').notNull(),
   livePhotoVideoId: uuid('livePhotoVideoId').references((): any => assets.id, { onDelete: 'set null', onUpdate: 'cascade' }),

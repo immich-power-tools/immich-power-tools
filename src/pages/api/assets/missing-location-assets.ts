@@ -8,7 +8,7 @@ import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
 import { albums } from "@/schema/albums.schema";
 import { IUser } from "@/types/user";
 import { addDays } from "date-fns";
-import { and, eq, gte, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lte } from "drizzle-orm";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const getRowsByDates = async (startDateDate: Date, endDateDate: Date, currentUser: IUser) => {
@@ -20,7 +20,6 @@ const getRowsByDates = async (startDateDate: Date, endDateDate: Date, currentUse
       originalPath: assets.originalPath,
       isFavorite: assets.isFavorite,
       duration: assets.duration,
-      encodedVideoPath: assets.encodedVideoPath,
       originalFileName: assets.originalFileName,
       deletedAt: assets.deletedAt,
       localDateTime: assets.localDateTime,
@@ -52,7 +51,6 @@ const getRowsByAlbums = async (currentUser: IUser, albumId: string) => {
     originalPath: assets.originalPath,
     isFavorite: assets.isFavorite,
     duration: assets.duration,
-    encodedVideoPath: assets.encodedVideoPath,
     originalFileName: assets.originalFileName,
     deletedAt: assets.deletedAt,
     localDateTime: assets.localDateTime,
@@ -81,9 +79,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { startDate, groupBy, albumId } = req.query as {
+  const { startDate, albumId } = req.query as {
     startDate: string;
-    groupBy: "date" | "album";
     albumId?: string;
   };
 

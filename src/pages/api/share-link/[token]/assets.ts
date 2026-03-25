@@ -1,7 +1,7 @@
 import { db } from "@/config/db";
 import { ENV } from "@/config/environment";
-import { desc, gte, lte, sql } from "drizzle-orm";
-import { eq, inArray, or, isNull, count } from "drizzle-orm";
+import { desc, gte, lte } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { assetFaces, assets, exif } from "@/schema";
 import { and } from "drizzle-orm";
 import { JsonWebTokenError, sign, verify } from "jsonwebtoken";
@@ -61,7 +61,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       originalPath: assets.originalPath,
       isFavorite: assets.isFavorite,
       duration: assets.duration,
-      encodedVideoPath: assets.encodedVideoPath,
       originalFileName: assets.originalFileName,
       deletedAt: assets.deletedAt,
       localDateTime: assets.localDateTime,
