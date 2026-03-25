@@ -6,7 +6,6 @@ export interface IAsset {
   originalPath: string;
   isFavorite: boolean;
   duration: number | null;
-  encodedVideoPath: string | null;
   originalFileName: string;
   thumbhash?: IAssetThumbhash;
   localDateTime: string | Date;

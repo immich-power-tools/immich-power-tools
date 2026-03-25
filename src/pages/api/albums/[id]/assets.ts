@@ -3,7 +3,7 @@ import { NextApiRequest } from "next";
 import { db } from "@/config/db";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { NextApiResponse } from "next";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { assets } from "@/schema/assets.schema";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
 import { assetFaces, exif, person } from "@/schema";
@@ -34,9 +34,7 @@ export default async function handler(
     originalPath: assets.originalPath,
     isFavorite: assets.isFavorite,
     duration: assets.duration,
-    encodedVideoPath: assets.encodedVideoPath,
     originalFileName: assets.originalFileName,
-    
     deletedAt: assets.deletedAt,
     localDateTime: assets.localDateTime,
     exifImageWidth: exif.exifImageWidth,

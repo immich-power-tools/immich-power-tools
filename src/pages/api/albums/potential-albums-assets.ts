@@ -14,7 +14,6 @@ const SELECT_ORPHAN_PHOTOS = (date: string, ownerId:  string) =>
       a."originalPath",
       a."isFavorite",
       a."duration",
-      a."encodedVideoPath",
       a."originalFileName",
       
       a."thumbhash",
