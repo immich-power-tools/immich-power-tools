@@ -68,6 +68,8 @@ export const GET_FILTERS = BASE_API_ENDPOINT + "/filters/asset-filters";
 
 // Person
 export const GET_PERSON_INFO = (personId: string) => BASE_API_ENDPOINT + "/people/" + personId + "/info";
+export const PERSON_FACES_PATH = (personId: string) => BASE_API_ENDPOINT + "/people/" + personId + "/faces";
+export const UNMERGE_FACES_PATH = (personId: string) => BASE_API_ENDPOINT + "/people/" + personId + "/unmerge";
 
 // Rewind
 export const REWIND_STATS = BASE_API_ENDPOINT + "/rewind/stats";
