@@ -22,6 +22,30 @@ export default function ShareAssetsTrigger({ filters, buttonProps }: ShareAssets
   const [config, setConfig] = useState<Partial<ShareLinkFilters>>({
     expiresIn: "never"
   });
+  const [endpointConfigured, setEndpointConfigured] = useState<boolean | null>(null);
+  const [shareKeyExists, setShareKeyExists] = useState<boolean | null>(null);
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+
+  const checkShareKey = async () => {
+    const res = await fetch('/api/share-key');
+    const data = await res.json();
+    setEndpointConfigured(data.endpointConfigured);
+    setShareKeyExists(data.exists);
+  };
+
+  const handleCreateKey = async () => {
+    setCreatingKey(true);
+    setKeyError(null);
+    const res = await fetch('/api/share-key', { method: 'POST' });
+    if (res.ok) {
+      setShareKeyExists(true);
+    } else {
+      const data = await res.json();
+      setKeyError(data.message ?? 'Failed to create share key');
+    }
+    setCreatingKey(false);
+  };
 
   const handleReset = () => {
     setConfig({ expiresIn: "never" });
@@ -52,7 +76,7 @@ export default function ShareAssetsTrigger({ filters, buttonProps }: ShareAssets
 
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => { if (open) checkShareKey(); }}>
       <DialogTrigger asChild>
         <Button {...buttonProps}>Share</Button>
       </DialogTrigger>
@@ -63,6 +87,24 @@ export default function ShareAssetsTrigger({ filters, buttonProps }: ShareAssets
         <DialogDescription>
           Generate a share link for the selected assets (either bunch of albums or bunch of people) and share it with your friends and family.
         </DialogDescription>
+        {endpointConfigured === false && (
+          <div className="rounded-md border border-red-400 bg-red-50 dark:bg-red-950 p-3">
+            <p className="text-sm text-red-800 dark:text-red-200">
+              <strong>POWER_TOOLS_ENDPOINT_URL</strong> is not set. Add it to your environment variables to enable share links.
+            </p>
+          </div>
+        )}
+        {endpointConfigured && shareKeyExists === false && (
+          <div className="rounded-md border border-yellow-400 bg-yellow-50 dark:bg-yellow-950 p-3 flex flex-col gap-2">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              Serving thumbnails on share links requires a dedicated API key. Create one now with minimal permissions.
+            </p>
+            {keyError && <p className="text-xs text-red-500">{keyError}</p>}
+            <Button size="sm" onClick={handleCreateKey} disabled={creatingKey} className="self-start">
+              {creatingKey ? 'Creating...' : 'Create API Key'}
+            </Button>
+          </div>
+        )}
         {errorMessage && <div className="text-red-500">{errorMessage}</div>}
         {generatedLink ? <div className="flex flex-col gap-2">
           <Label className='text-sm'>Share Link</Label>
@@ -106,7 +148,7 @@ export default function ShareAssetsTrigger({ filters, buttonProps }: ShareAssets
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleGenerate} disabled={loading}>Generate Share Link</Button>
+            <Button onClick={handleGenerate} disabled={loading || !endpointConfigured || !shareKeyExists}>Generate Share Link</Button>
           </div>
         )}
       </DialogContent>

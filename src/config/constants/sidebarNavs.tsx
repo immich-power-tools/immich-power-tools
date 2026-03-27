@@ -1,4 +1,4 @@
-import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, Rewind, Search, Share2, User, Video   } from "lucide-react";
+import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, Rewind, Search, Settings, Share2, User, Video   } from "lucide-react";
 
 export const sidebarNavs = [
   // {
@@ -59,5 +59,9 @@ export const sidebarNavs = [
     link: "/assets/bulk-duplicate-finder",
     icon: <Copy className="h-4 w-4" />,
   },
-  
+  {
+    title: "Settings",
+    link: "/settings",
+    icon: <Settings className="h-4 w-4" />,
+  },
 ];

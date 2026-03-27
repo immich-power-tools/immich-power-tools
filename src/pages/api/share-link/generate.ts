@@ -19,15 +19,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: "The JWT_SECRET is missing in the .env file. Please add it to the .env file for generating share links" });
   }
 
-  if (!ENV.IMMICH_SHARE_LINK_KEY) {
-    return res.status(401).json({ message: "The IMMICH_SHARE_LINK_KEY is missing in the .env file. Please add it to the .env file for generating share links" });
-  }
-
   if (!ENV.POWER_TOOLS_ENDPOINT_URL) {
     return res.status(401).json({ message: "The POWER_TOOLS_ENDPOINT_URL is missing in the .env file. Please add it to the .env file for generating share links" });
   }
 
-  const token = sign(filters, ENV.JWT_SECRET, expiresIn !== "never" ? {
+  const token = sign({ ...filters, userId: currentUser.id }, ENV.JWT_SECRET, expiresIn !== "never" ? {
     expiresIn: expiresIn
   } : {});
 
