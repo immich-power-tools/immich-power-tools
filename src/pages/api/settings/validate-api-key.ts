@@ -1,14 +1,7 @@
 import { ENV } from "@/config/environment";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
+import { WORKFLOW_API_KEY_PERMISSIONS } from "@/lib/workflow/permissions";
 import { NextApiRequest, NextApiResponse } from "next";
-
-const WORKFLOW_PERMISSIONS = [
-  "asset.read",
-  "asset.update",
-  "album.create",
-  "album.update",
-  "tag.create",
-];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method not allowed" });
@@ -19,7 +12,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { apiKey, requiredPermissions } = req.body;
   if (!apiKey) return res.status(400).json({ message: "apiKey is required" });
 
-  const REQUIRED_PERMISSIONS: string[] = Array.isArray(requiredPermissions) ? requiredPermissions : WORKFLOW_PERMISSIONS;
+  const REQUIRED_PERMISSIONS: string[] = Array.isArray(requiredPermissions)
+    ? requiredPermissions
+    : [...WORKFLOW_API_KEY_PERMISSIONS];
 
   try {
     const keyRes = await fetch(`${ENV.IMMICH_URL}/api/api-keys/me`, {

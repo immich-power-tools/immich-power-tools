@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import API from "@/lib/api";
 import { useConfig } from "@/contexts/ConfigContext";
+import { WORKFLOW_API_KEY_PERMISSIONS } from "@/lib/workflow/permissions";
 import Link from "next/link";
 
 function ConnectionStatus({ label, url, icon: Icon }: { label: string; url: string; icon: any }) {
@@ -251,7 +252,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {["asset.read", "asset.update", "album.create", "album.update", "tag.create"].map((p) => {
+                  {WORKFLOW_API_KEY_PERMISSIONS.map((p) => {
                     const granted = validationResult.permissions.includes(p);
                     const missing = validationResult.missing.includes(p);
                     return (
@@ -269,7 +270,7 @@ export default function SettingsPage() {
             )}
             {!validationResult && (
               <div className="flex flex-wrap gap-1">
-                {["asset.read", "asset.update", "album.create", "album.update", "tag.create"].map((p) => (
+                {WORKFLOW_API_KEY_PERMISSIONS.map((p) => (
                   <Badge key={p} variant="outline" className="text-[10px] h-5 font-mono font-normal">{p}</Badge>
                 ))}
               </div>

@@ -3,19 +3,13 @@ import { appDb } from "@/db";
 import { settings } from "@/db/schema/settings.schema";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { getUserHeaders } from "@/helpers/user.helper";
+import { WORKFLOW_API_KEY_PERMISSIONS } from "@/lib/workflow/permissions";
 import { and, eq } from "drizzle-orm";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const WORKFLOW_API_KEY_SETTING = "workflow_api_key";
 const WORKFLOW_KEY_NAME = "Power Tools Workflow Key";
-const WORKFLOW_PERMISSIONS = [
-  "asset.read",
-  "asset.update",
-  "album.read",
-  "album.create",
-  "album.update",
-  "tag.create",
-];
+const WORKFLOW_PERMISSIONS = [...WORKFLOW_API_KEY_PERMISSIONS];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method not allowed" });
