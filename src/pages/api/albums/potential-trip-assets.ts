@@ -5,8 +5,22 @@ import { isFlipped } from "@/helpers/asset.helper";
 import { sql } from "drizzle-orm";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const SELECT_ORPHAN_RANGE = (startDate: string, endDate: string, ownerId: string) =>
-  sql.raw(`
+// Optional `city` narrows the result to assets whose EXIF city matches the
+// trip's dominant city. Assets with NULL city are included alongside the
+// match: they may be photos taken during the trip but without GPS metadata
+// (screenshots, edited copies, older devices, etc.) and excluding them would
+// lose real trip content. If `city` is not provided the date range alone
+// determines membership.
+const SELECT_ORPHAN_RANGE = (
+  startDate: string,
+  endDate: string,
+  ownerId: string,
+  city: string | null
+) => {
+  const cityClause = city
+    ? `AND (e."city" = '${city.replace(/'/g, "''")}' OR e."city" IS NULL)`
+    : "";
+  return sql.raw(`
   SELECT
       a."id",
       a."ownerId",
@@ -21,7 +35,9 @@ const SELECT_ORPHAN_RANGE = (startDate: string, endDate: string, ownerId: string
       e."exifImageWidth",
       e."exifImageHeight",
       e."dateTimeOriginal",
-      e."orientation"
+      e."orientation",
+      e."city",
+      e."country"
   FROM
       asset a
   LEFT JOIN
@@ -35,16 +51,22 @@ const SELECT_ORPHAN_RANGE = (startDate: string, endDate: string, ownerId: string
       AND a."ownerId" = '${ownerId}'
       AND e."dateTimeOriginal"::date BETWEEN '${startDate}' AND '${endDate}'
       AND a."visibility" = 'timeline'
+      ${cityClause}
   ORDER BY
       e."dateTimeOriginal" ASC
 `);
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const currentUser = await getCurrentUser(req);
     if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
-    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    const { startDate, endDate, city } = req.query as {
+      startDate?: string;
+      endDate?: string;
+      city?: string;
+    };
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "startDate and endDate are required (YYYY-MM-DD)" });
     }
@@ -56,7 +78,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Invalid date format, expected YYYY-MM-DD" });
     }
 
-    const { rows } = await db.execute(SELECT_ORPHAN_RANGE(startDate, endDate, currentUser.id));
+    const { rows } = await db.execute(
+      SELECT_ORPHAN_RANGE(startDate, endDate, currentUser.id, city ?? null)
+    );
 
     const cleaned = rows.map((row: any) => ({
       ...row,

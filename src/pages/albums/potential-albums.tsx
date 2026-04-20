@@ -159,6 +159,7 @@ export default function PotentialAlbums() {
                       ...contextState.config,
                       startDate: trip.startDate,
                       endDate: trip.endDate,
+                      tripCity: trip.cityName,
                       suggestedAlbumName: trip.suggestedName,
                     },
                   })

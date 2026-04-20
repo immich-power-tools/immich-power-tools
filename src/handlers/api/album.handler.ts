@@ -50,8 +50,14 @@ export const listPotentialTrips = async (filters?: IPotentialTripsFilters): Prom
   return API.get(LIST_POTENTIAL_TRIPS_PATH, filters);
 }
 
-export const listPotentialTripAssets = async (startDate: string, endDate: string): Promise<IAsset[]> => {
-  return API.get(LIST_POTENTIAL_TRIP_ASSETS_PATH, { startDate, endDate }).then((assets) => assets.map(cleanUpAsset));
+export const listPotentialTripAssets = async (
+  startDate: string,
+  endDate: string,
+  city?: string | null,
+): Promise<IAsset[]> => {
+  const params: Record<string, string> = { startDate, endDate };
+  if (city) params.city = city;
+  return API.get(LIST_POTENTIAL_TRIP_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
 }
 
 export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string }) => {

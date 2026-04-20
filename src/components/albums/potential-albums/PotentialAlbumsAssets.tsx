@@ -17,7 +17,7 @@ export default function PotentialAlbumsAssets() {
     updateContext,
     config
   } = usePhotoSelectionContext();
-  const { startDate, endDate } = config;
+  const { startDate, endDate, tripCity } = config;
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function PotentialAlbumsAssets() {
     });
     // If endDate is set we're in trip-range mode, else single-day mode.
     const fetcher = endDate
-      ? listPotentialTripAssets(startDate, endDate)
+      ? listPotentialTripAssets(startDate, endDate, tripCity)
       : listPotentialAlbumsAssets({ startDate });
     return fetcher
       .then((fetchedAssets) => updateContext({ assets: fetchedAssets }))
@@ -70,7 +70,7 @@ export default function PotentialAlbumsAssets() {
   useEffect(() => {
     if (startDate) fetchAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate]);
+  }, [startDate, endDate, tripCity]);
 
   if (loading)
     return (
