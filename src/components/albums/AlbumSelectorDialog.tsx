@@ -38,10 +38,17 @@ export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit, d
     albumName: defaultName ?? config.suggestedAlbumName ?? "",
   });
 
-  // Sync the pre-fill if it changes after mount (e.g., user picks another trip)
+  // Track the previous suggestion so we only overwrite the user's typing when
+  // the suggestion itself changes (e.g. they picked a different trip), not on
+  // every render. This keeps "user is typing" stable while still flipping the
+  // input as soon as a trip selection arrives.
+  const lastSuggestionRef = React.useRef<string | null>(null);
   useEffect(() => {
     const next = defaultName ?? config.suggestedAlbumName ?? "";
-    setFormData((prev) => (prev.albumName ? prev : { albumName: next }));
+    if (!next) return;
+    if (lastSuggestionRef.current === next) return;
+    lastSuggestionRef.current = next;
+    setFormData({ albumName: next });
   }, [defaultName, config.suggestedAlbumName]);
 
   const fetchData = () => {
