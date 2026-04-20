@@ -6,6 +6,9 @@ import { createContext, useContext } from "react";
 export interface IPhotoSelectionConfig {
   // Common config potentially used by multiple features
   startDate?: string;
+  endDate?: string;
+  /** Pre-filled name suggestion for a new album (e.g. "20180401 - Lisboa"). */
+  suggestedAlbumName?: string;
 
   // MissingLocation specific config
   albumId?: string;

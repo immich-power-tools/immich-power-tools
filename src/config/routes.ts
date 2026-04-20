@@ -19,6 +19,8 @@ export const EXIF_DISTRIBUTION_PATH = (column: string) => BASE_API_ENDPOINT + "/
 // Albums
 export const LIST_POTENTIAL_ALBUMS_DATES_PATH = BASE_API_ENDPOINT + "/albums/potential-albums-dates";
 export const LIST_POTENTIAL_ALBUMS_ASSETS_PATH = BASE_API_ENDPOINT + "/albums/potential-albums-assets";
+export const LIST_POTENTIAL_TRIPS_PATH = BASE_API_ENDPOINT + "/albums/potential-trips";
+export const LIST_POTENTIAL_TRIP_ASSETS_PATH = BASE_API_ENDPOINT + "/albums/potential-trip-assets";
 export const LIST_ALBUMS_PATH = BASE_API_ENDPOINT + "/albums/list";
 export const ALBUM_INFO_PATH = (id: string) => BASE_API_ENDPOINT + "/albums/" + id + "/info";
 

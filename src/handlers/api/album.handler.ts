@@ -1,4 +1,4 @@
-import { ADD_ASSETS_ALBUMS_PATH, ALBUM_ASSETS_PATH, ALBUM_INFO_PATH, ALBUM_PEOPLE_PATH, CREATE_ALBUM_PATH, DELETE_ALBUMS_PATH, LIST_ALBUMS_PATH, LIST_POTENTIAL_ALBUMS_ASSETS_PATH, LIST_POTENTIAL_ALBUMS_DATES_PATH, MERGE_ALBUMS_PATH, SHARE_ALBUMS_PATH } from "@/config/routes";
+import { ADD_ASSETS_ALBUMS_PATH, ALBUM_ASSETS_PATH, ALBUM_INFO_PATH, ALBUM_PEOPLE_PATH, CREATE_ALBUM_PATH, DELETE_ALBUMS_PATH, LIST_ALBUMS_PATH, LIST_POTENTIAL_ALBUMS_ASSETS_PATH, LIST_POTENTIAL_ALBUMS_DATES_PATH, LIST_POTENTIAL_TRIPS_PATH, LIST_POTENTIAL_TRIP_ASSETS_PATH, MERGE_ALBUMS_PATH, SHARE_ALBUMS_PATH } from "@/config/routes";
 import { cleanUpAsset } from "@/helpers/asset.helper";
 import API from "@/lib/api";
 import { IAlbumCreate } from "@/types/album";
@@ -22,6 +22,36 @@ export const listPotentialAlbumsDates = async (filters: IPotentialAlbumsDatesFil
 
 export const listPotentialAlbumsAssets = async (filters: IPotentialAlbumsDatesFilters): Promise<IAsset[]> => {
   return API.get(LIST_POTENTIAL_ALBUMS_ASSETS_PATH, filters).then((assets) => assets.map(cleanUpAsset));
+}
+
+export interface IPotentialTripsFilters {
+  homeRadiusKm?: number;
+  minTripDays?: number;
+  gapTolerance?: number;
+}
+
+export interface IPotentialTrip {
+  startDate: string;
+  endDate: string;
+  cityName: string | null;
+  countryName: string | null;
+  assetCount: number;
+  dayCount: number;
+  awayDays: number;
+  suggestedName: string;
+}
+
+export interface IPotentialTripsResponse {
+  home: { city: string | null; lat: number | null; lon: number | null };
+  trips: IPotentialTrip[];
+}
+
+export const listPotentialTrips = async (filters?: IPotentialTripsFilters): Promise<IPotentialTripsResponse> => {
+  return API.get(LIST_POTENTIAL_TRIPS_PATH, filters);
+}
+
+export const listPotentialTripAssets = async (startDate: string, endDate: string): Promise<IAsset[]> => {
+  return API.get(LIST_POTENTIAL_TRIP_ASSETS_PATH, { startDate, endDate }).then((assets) => assets.map(cleanUpAsset));
 }
 
 export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string }) => {

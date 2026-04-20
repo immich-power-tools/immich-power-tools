@@ -20,17 +20,29 @@ interface IProps {
   onSelected: (album: IAlbum) => Promise<void>;
   onCreated?: (album: IAlbum) => Promise<void>;
   onSubmit?: (data: IAlbumCreate) => Promise<any>;
+  /**
+   * Pre-filled album name suggestion for the "Create New" tab. Useful when
+   * the caller already has a sensible default (e.g. the trip suggested name
+   * "20180401 - Lisboa"). The user can still edit it.
+   */
+  defaultName?: string;
 }
-export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit }: IProps) {
+export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit, defaultName }: IProps) {
   const [open, setOpen] = useState(false);
   const [albums, setAlbums] = useState<IAlbum[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { selectedIds, assets } = usePhotoSelectionContext();
+  const { selectedIds, assets, config } = usePhotoSelectionContext();
   const [formData, setFormData] = useState({
-    albumName: "",
+    albumName: defaultName ?? config.suggestedAlbumName ?? "",
   });
+
+  // Sync the pre-fill if it changes after mount (e.g., user picks another trip)
+  useEffect(() => {
+    const next = defaultName ?? config.suggestedAlbumName ?? "";
+    setFormData((prev) => (prev.albumName ? prev : { albumName: next }));
+  }, [defaultName, config.suggestedAlbumName]);
 
   const fetchData = () => {
     setLoading(true);
