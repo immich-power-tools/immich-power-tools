@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 export const importJobs = sqliteTable("import_jobs", {
   id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   userId: text("user_id").notNull(),
-  platform: text("platform").notNull(),       // 'immich' | 'nextcloud' | 'photoprism'
+  platform: text("platform").notNull(),       // 'immich' | 'nextcloud' | 'ente' | 'photoprism'
   status: text("status").notNull().default("pending"), // pending | processing | completed | failed
   url: text("url").notNull(),                 // base URL of source
   urlConfig: text("url_config").notNull().default("{}"),   // JSON: auth/connection (key, token, etc.)

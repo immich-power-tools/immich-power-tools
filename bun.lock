@@ -39,6 +39,7 @@
         "@xyflow/react": "^12.10.2",
         "ai": "^6.0.146",
         "axios": "^1.14.0",
+        "bs58": "^6.0.0",
         "chrono-node": "^1.4.9",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -52,6 +53,7 @@
         "jsonwebtoken": "^9.0.3",
         "leaflet": "^1.9.4",
         "leaflet.heat": "^0.2.0",
+        "libsodium-wrappers-sumo": "^0.8.2",
         "lucide-react": "^0.428.0",
         "next": "15.5.14",
         "next-themes": "^0.3.0",
@@ -80,6 +82,7 @@
         "@types/jsonwebtoken": "^9.0.10",
         "@types/leaflet": "^1.9.21",
         "@types/leaflet.heat": "^0.2.5",
+        "@types/libsodium-wrappers-sumo": "^0.8.2",
         "@types/node": "^20.19.39",
         "@types/node-cron": "3.0.11",
         "@types/pg": "^8.20.0",
@@ -564,6 +567,8 @@
 
     "@types/leaflet.heat": ["@types/leaflet.heat@0.2.5", "", { "dependencies": { "@types/leaflet": "^1.9" } }, "sha512-wmDePJPn2vhW9BScsWTV4pSfWayhdDwXuWIQzUuaJkvk5DCHsYsIegTD7tybo38E/0mxpuWODKV/LhsxPESWJg=="],
 
+    "@types/libsodium-wrappers-sumo": ["@types/libsodium-wrappers-sumo@0.8.2", "", { "dependencies": { "libsodium-wrappers-sumo": "*" } }, "sha512-uFOBpg/r21hExVlh2ty8YpDfSR+Yy3Jn8XS4+SSjitbhTxdYq+pBz/49XRxyUFe8SzqujHf/Wu0/O4d+FUtNfQ=="],
+
     "@types/ms": ["@types/ms@2.1.0", "", {}, "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="],
 
     "@types/node": ["@types/node@20.19.39", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-orrrD74MBUyK8jOAD/r0+lfa1I2MO6I+vAkmAWzMYbCcgrN4lCrmK52gRFQq/JRxfYPfonkr4b0jcY7Olqdqbw=="],
@@ -750,6 +755,8 @@
 
     "balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
 
+    "base-x": ["base-x@5.0.1", "", {}, "sha512-M7uio8Zt++eg3jPj+rHMfCC+IuygQHHCOU+IYsVtik6FWjuYpVt/+MRKcgsAMHh8mMFAwnB+Bs+mTrFiXjMzKg=="],
+
     "baseline-browser-mapping": ["baseline-browser-mapping@2.10.15", "", { "bin": { "baseline-browser-mapping": "dist/cli.cjs" } }, "sha512-1nfKCq9wuAZFTkA2ey/3OXXx7GzFjLdkTiFVNwlJ9WqdI706CZRIhEqjuwanjMIja+84jDLa9rcyZDPDiVkASQ=="],
 
     "big.js": ["big.js@5.2.2", "", {}, "sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ=="],
@@ -761,6 +768,8 @@
     "braces": ["braces@3.0.3", "", { "dependencies": { "fill-range": "^7.1.1" } }, "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="],
 
     "browserslist": ["browserslist@4.28.2", "", { "dependencies": { "baseline-browser-mapping": "^2.10.12", "caniuse-lite": "^1.0.30001782", "electron-to-chromium": "^1.5.328", "node-releases": "^2.0.36", "update-browserslist-db": "^1.2.3" }, "bin": { "browserslist": "cli.js" } }, "sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg=="],
+
+    "bs58": ["bs58@6.0.0", "", { "dependencies": { "base-x": "^5.0.0" } }, "sha512-PD0wEnEYg6ijszw/u8s+iI3H17cTymlrwkKhDhPZq+Sokl3AU4htyBFTjAeNAlCCmg0f53g6ih3jATyCKftTfw=="],
 
     "buffer-crc32": ["buffer-crc32@0.2.13", "", {}, "sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ=="],
 
@@ -1217,6 +1226,10 @@
     "leaflet.heat": ["leaflet.heat@0.2.0", "", {}, "sha512-Cd5PbAA/rX3X3XKxfDoUGi9qp78FyhWYurFg3nsfhntcM/MCNK08pRkf4iEenO1KNqwVPKCmkyktjW3UD+h9bQ=="],
 
     "levn": ["levn@0.4.1", "", { "dependencies": { "prelude-ls": "^1.2.1", "type-check": "~0.4.0" } }, "sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ=="],
+
+    "libsodium-sumo": ["libsodium-sumo@0.8.2", "", {}, "sha512-uMgnjphJ717jLN+jFG1HUgNrK/gOVVfaO1DGZ1Ig/fKLKLVhvaH/sM1I1v784JFvmkJDaczDpi7xSYC4Jvdo1Q=="],
+
+    "libsodium-wrappers-sumo": ["libsodium-wrappers-sumo@0.8.2", "", { "dependencies": { "libsodium-sumo": "^0.8.0" } }, "sha512-wd1xAY++Kr6VMikSaa4EPRAHJmFvNlGWiiwU3Jh3GR1zRYF3/I3vy/wYsr4k3LVsNzwb9sqfEQ4LdVQ6zEebyQ=="],
 
     "libsql": ["libsql@0.5.29", "", { "dependencies": { "@neon-rs/load": "^0.0.4", "detect-libc": "2.0.2" }, "optionalDependencies": { "@libsql/darwin-arm64": "0.5.29", "@libsql/darwin-x64": "0.5.29", "@libsql/linux-arm-gnueabihf": "0.5.29", "@libsql/linux-arm-musleabihf": "0.5.29", "@libsql/linux-arm64-gnu": "0.5.29", "@libsql/linux-arm64-musl": "0.5.29", "@libsql/linux-x64-gnu": "0.5.29", "@libsql/linux-x64-musl": "0.5.29", "@libsql/win32-x64-msvc": "0.5.29" }, "os": [ "linux", "win32", "darwin", ], "cpu": [ "arm", "x64", "arm64", ] }, "sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg=="],
 

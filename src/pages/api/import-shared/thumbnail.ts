@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getFileRedirectUrl, decryptSecretStream, decryptSecretBox } from "./ente";
+import _sodium from "libsodium-wrappers-sumo";
 
 const respondWithError = (res: NextApiResponse, status: number, message: string) => {
   return res.status(status).json({ error: message });
@@ -59,6 +61,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // ── Ente: encrypted thumbnails ──
+    if (params.platform === "ente") {
+      const enteFileKey = typeof req.query.enteFileKey === "string" ? req.query.enteFileKey : "";
+      const enteThumbnailHeader = typeof req.query.enteThumbnailHeader === "string" ? req.query.enteThumbnailHeader : "";
+      const apiBase = typeof req.query.apiBase === "string" ? req.query.apiBase : params.origin;
+
+      if (!enteFileKey || !enteThumbnailHeader) {
+        return respondWithError(res, 400, "Missing Ente encryption params (enteFileKey, enteThumbnailHeader)");
+      }
+
+      await _sodium.ready;
+      const fileKeyBytes = _sodium.from_base64(enteFileKey, _sodium.base64_variants.ORIGINAL);
+
+      const redirectUrl = await getFileRedirectUrl(apiBase, params.key, params.assetId, "preview");
+      const encryptedResp = await fetch(redirectUrl);
+      if (!encryptedResp.ok) {
+        return respondWithError(res, encryptedResp.status, "Failed to fetch Ente thumbnail");
+      }
+      const encrypted = Buffer.from(await encryptedResp.arrayBuffer());
+      const decrypted = await decryptSecretStream(encrypted, enteThumbnailHeader, fileKeyBytes);
+
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return res.status(200).send(decrypted);
+    }
+
     let targetUrl: string;
 
     if (params.platform === "nextcloud") {

@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { detectNextcloud, checkPasswordProtection, listNextcloudFiles } from "./import-shared/nextcloud";
+import { detectEnte, fetchEnteAlbum } from "./import-shared/ente";
 
 interface IAlbumContributorCount {
   userId: string;
@@ -66,6 +67,10 @@ interface IImportSharedAsset {
   location?: string | null;
   thumbhash?: string | null;
   fileSizeInByte?: number | null;
+  // Ente-specific encryption artifacts (optional)
+  enteFileKey?: string;
+  enteFileDecryptionHeader?: string;
+  enteThumbnailDecryptionHeader?: string;
 }
 
 interface IImportSharedAlbum {
@@ -84,7 +89,7 @@ interface IImportSharedAlbum {
 }
 
 interface IImportSharedResponse {
-  platform: "immich" | "nextcloud";
+  platform: "immich" | "nextcloud" | "ente";
   link: string;
   origin: string;
   key: string;
@@ -98,6 +103,9 @@ interface IImportSharedResponse {
     showMetadata?: boolean;
   };
   album: IImportSharedAlbum | null;
+  // Ente-specific (optional)
+  enteApiBase?: string;
+  enteAlbumKey?: string;
 }
 
 const respondWithError = (res: NextApiResponse, status: number, message: string) => {
@@ -246,10 +254,90 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  // ── Ente flow ──
+  const ente = detectEnte(link);
+  if (ente) {
+    try {
+      const result = await fetchEnteAlbum(link);
+
+      const assets: IImportSharedAsset[] = result.files.map((f) => ({
+        id: f.id,
+        originalFileName: f.title,
+        type: f.type,
+        fileCreatedAt: f.creationTime
+          ? new Date(f.creationTime / 1000).toISOString()
+          : null,
+        localDateTime: f.modificationTime
+          ? new Date(f.modificationTime / 1000).toISOString()
+          : null,
+        description: null,
+        location: null,
+        thumbhash: null,
+        fileSizeInByte: f.fileSize ?? null,
+        enteFileKey: f.fileKey,
+        enteFileDecryptionHeader: f.fileDecryptionHeader,
+        enteThumbnailDecryptionHeader: f.thumbnailDecryptionHeader,
+      }));
+
+      const dates = result.files
+        .map((f) => f.creationTime)
+        .filter((t) => t > 0);
+      const startDate =
+        dates.length > 0
+          ? new Date(Math.min(...dates) / 1000).toISOString()
+          : null;
+      const endDate =
+        dates.length > 0
+          ? new Date(Math.max(...dates) / 1000).toISOString()
+          : null;
+
+      const responseBody: IImportSharedResponse = {
+        platform: "ente",
+        link: link.trim(),
+        origin: result.apiBase,
+        key: result.token,
+        sharedLink: {
+          id: result.token,
+          type: "ALBUM",
+          createdAt: new Date().toISOString(),
+          expiresAt: null,
+          allowUpload: false,
+          allowDownload: true,
+          showMetadata: true,
+        },
+        album: {
+          albumName: result.albumName,
+          assetCount: assets.length,
+          owner: null,
+          description: null,
+          startDate,
+          endDate,
+          shared: true,
+          hasSharedLink: true,
+          lastModifiedAssetTimestamp: endDate,
+          order: null,
+          contributorCounts: [],
+          assets,
+        },
+        enteApiBase: result.apiBase,
+        enteAlbumKey: result.albumKeyB58,
+      };
+
+      return res.status(200).json(responseBody);
+    } catch (error: any) {
+      console.error("Ente import shared error", error);
+      return respondWithError(
+        res,
+        500,
+        error?.message ?? "Failed to fetch Ente album"
+      );
+    }
+  }
+
   // ── Immich flow ──
   const parsed = parseSharedLink(link);
   if (!parsed) {
-    return respondWithError(res, 400, "Invalid share link. Supported: Immich or Nextcloud share URLs.");
+    return respondWithError(res, 400, "Invalid share link. Supported: Immich, Nextcloud, or Ente share URLs.");
   }
 
   const authQuery = password
