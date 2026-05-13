@@ -9,6 +9,8 @@ import {
   UPDATE_ASSETS_PATH,
   LIST_DUPLICATES_PATH,
   LIST_ORPHAN_ASSETS_PATH,
+  MISSING_ORIGINALS_SCAN_PATH,
+  MISSING_ORIGINALS_TRASH_PATH,
 } from "@/config/routes";
 import { cleanUpAsset } from "@/helpers/asset.helper";
 import API from "@/lib/api";
@@ -124,4 +126,44 @@ export const listOrphanAssets = async (filters: IOrphanFilters): Promise<IAsset[
   if (filters.limit) params.limit = String(filters.limit);
   if (filters.page) params.page = String(filters.page);
   return API.get(LIST_ORPHAN_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
+}
+
+export interface IMissingOriginalAsset extends IAsset {
+  mappedPath: string;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+}
+
+export interface IMissingOriginalsScanResponse {
+  enabled: boolean;
+  totalChecked: number;
+  missingCount: number;
+  missingPercent: number;
+  safetyPercent: number;
+  maxMissingPercent: number;
+  dbPrefix: string;
+  scanRoot: string;
+  missing: IMissingOriginalAsset[];
+  unsafeToTrash: boolean;
+  message?: string;
+}
+
+export const scanMissingOriginals = async (): Promise<IMissingOriginalsScanResponse> => {
+  return API.get(MISSING_ORIGINALS_SCAN_PATH).then((response) => ({
+    ...response,
+    missing: response.missing.map((asset: IMissingOriginalAsset) => ({
+      ...cleanUpAsset(asset),
+      mappedPath: asset.mappedPath,
+      city: asset.city,
+      state: asset.state,
+      country: asset.country,
+    })),
+  }));
+}
+
+export const trashMissingOriginals = async (
+  ids: string[]
+): Promise<{ trashedCount: number; ids: string[] }> => {
+  return API.post(MISSING_ORIGINALS_TRASH_PATH, { ids });
 }

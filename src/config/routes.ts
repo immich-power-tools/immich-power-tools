@@ -45,6 +45,8 @@ export const ASSET_VIDEO_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/asset/vi
 export const ASSET_GEO_HEATMAP_PATH = BASE_API_ENDPOINT + "/assets/geo-heatmap";
 export const LIST_EMPTY_VIDEOS_PATH = BASE_API_ENDPOINT + "/assets/empty-videos";
 export const LIST_ORPHAN_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/orphan-finder";
+export const MISSING_ORIGINALS_SCAN_PATH = BASE_API_ENDPOINT + "/assets/missing-originals/scan";
+export const MISSING_ORIGINALS_TRASH_PATH = BASE_API_ENDPOINT + "/assets/missing-originals/trash";
 
 
 
