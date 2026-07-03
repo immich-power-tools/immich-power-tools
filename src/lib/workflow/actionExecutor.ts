@@ -28,6 +28,16 @@ async function getWorkflowApiKey(ownerId: string): Promise<string | null> {
   return row?.value || null;
 }
 
+// Immich bulk endpoints are called in batches so large asset sets don't
+// produce oversized request bodies.
+const API_BATCH_SIZE = 1000;
+
+async function immichFetchBatched(path: string, method: string, ids: string[], extraBody: Record<string, any>, user: IUser): Promise<void> {
+  for (let i = 0; i < ids.length; i += API_BATCH_SIZE) {
+    await immichFetch(path, method, { ...extraBody, ids: ids.slice(i, i + API_BATCH_SIZE) }, user);
+  }
+}
+
 async function immichFetch(path: string, method: string, body: any, user: IUser): Promise<any> {
   const workflowApiKey = await getWorkflowApiKey(user.id);
 
@@ -136,34 +146,37 @@ export async function executeAction(
   switch (subType) {
     case "create_album": {
       const albumName = await resolveTemplate(config.nameTemplate || "Auto Album", assetIds);
-      const album = await immichFetch("/albums", "POST", { albumName, assetIds }, user);
+      const album = await immichFetch("/albums", "POST", { albumName, assetIds: assetIds.slice(0, API_BATCH_SIZE) }, user);
+      if (assetIds.length > API_BATCH_SIZE) {
+        await immichFetchBatched(`/albums/${album.id}/assets`, "PUT", assetIds.slice(API_BATCH_SIZE), {}, user);
+      }
       return { action: "create_album", assetsProcessed: assetIds.length, albumId: album.id, albumName };
     }
 
     case "add_to_album": {
       if (!config.albumId) throw new Error("Album ID is required for add_to_album");
-      await immichFetch(`/albums/${config.albumId}/assets`, "PUT", { ids: assetIds }, user);
+      await immichFetchBatched(`/albums/${config.albumId}/assets`, "PUT", assetIds, {}, user);
       return { action: "add_to_album", assetsProcessed: assetIds.length, albumId: config.albumId };
     }
 
     case "remove_from_album": {
       if (!config.albumId) throw new Error("Album ID is required for remove_from_album");
-      await immichFetch(`/albums/${config.albumId}/assets`, "DELETE", { ids: assetIds }, user);
+      await immichFetchBatched(`/albums/${config.albumId}/assets`, "DELETE", assetIds, {}, user);
       return { action: "remove_from_album", assetsProcessed: assetIds.length, albumId: config.albumId };
     }
 
     case "favorite": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, isFavorite: true }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { isFavorite: true }, user);
       return { action: "favorite", assetsProcessed: assetIds.length };
     }
 
     case "unfavorite": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, isFavorite: false }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { isFavorite: false }, user);
       return { action: "unfavorite", assetsProcessed: assetIds.length };
     }
 
     case "archive": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, visibility: "archive" }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { visibility: "archive" }, user);
       return { action: "archive", assetsProcessed: assetIds.length };
     }
 
@@ -173,7 +186,7 @@ export async function executeAction(
         // Create or get tag
         const tag = await immichFetch("/tags", "POST", { name: config.tagName }, user);
         // Tag assets
-        await immichFetch(`/tags/${tag.id}/assets`, "PUT", { ids: assetIds }, user);
+        await immichFetchBatched(`/tags/${tag.id}/assets`, "PUT", assetIds, {}, user);
         return { action: "tag", assetsProcessed: assetIds.length };
       } catch (e: any) {
         return { action: "tag", assetsProcessed: 0, error: e.message };
