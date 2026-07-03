@@ -27,6 +27,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   asset_type: "Asset Type",
   iso_range: "ISO Range",
   focal_length: "Focal Length",
+  resolution: "Resolution",
   rating: "Rating",
   is_favorited: "Favorited",
   not_in_album: "Not in Any Album",
@@ -192,6 +193,25 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
           <Input className="h-7 text-xs w-16" type="number" min={1} max={5} placeholder="Max" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: parseInt(e.target.value) || undefined })} />
         </div>
       );
+    case "resolution": {
+      const unit = (condition.metric || "megapixels") === "megapixels" ? "MP" : "px";
+      return (
+        <div className="space-y-2">
+          <Select value={condition.metric || "megapixels"} onValueChange={(v) => onChange({ ...condition, metric: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="megapixels">Megapixels</SelectItem>
+              <SelectItem value="short_edge">Short Edge (px)</SelectItem>
+              <SelectItem value="long_edge">Long Edge (px)</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder={`Min ${unit}`} value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+            <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder={`Max ${unit}`} value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+          </div>
+        </div>
+      );
+    }
     case "is_favorited":
       return (
         <Select value={condition.value === false ? "false" : "true"} onValueChange={(v) => onChange({ ...condition, value: v === "true" })}>

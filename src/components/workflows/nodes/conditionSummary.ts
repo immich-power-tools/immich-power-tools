@@ -16,6 +16,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   asset_type: "Asset Type",
   iso_range: "ISO Range",
   focal_length: "Focal Length",
+  resolution: "Resolution",
   rating: "Rating",
   is_favorited: "Favorited",
   not_in_album: "Not in Any Album",
@@ -93,6 +94,16 @@ export function formatConditionSummary(c: ICondition): string {
       if (c.min != null && c.max != null) return `${label}: ${c.min}–${c.max}`;
       if (c.min != null) return `${label}: ≥${c.min}`;
       if (c.max != null) return `${label}: ≤${c.max}`;
+      return label;
+    }
+    case "resolution": {
+      const metricNames: Record<string, string> = { megapixels: "MP", short_edge: "short edge", long_edge: "long edge" };
+      const metric = c.metric || "megapixels";
+      const unit = metric === "megapixels" ? "MP" : "px";
+      const name = metric === "megapixels" ? "" : `${metricNames[metric]} `;
+      if (c.min != null && c.max != null) return `${label}: ${name}${c.min}–${c.max}${unit}`;
+      if (c.min != null) return `${label}: ${name}≥${c.min}${unit}`;
+      if (c.max != null) return `${label}: ${name}≤${c.max}${unit}`;
       return label;
     }
     case "is_favorited":
