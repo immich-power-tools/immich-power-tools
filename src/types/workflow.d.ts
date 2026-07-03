@@ -55,6 +55,8 @@ export type ConditionType =
   | "camera_make" | "camera_model" | "lens"
   | "asset_type" | "iso_range" | "focal_length"
   | "rating" | "is_favorited"
+  | "file_size" | "filename" | "file_extension"
+  | "face_count" | "time_of_day"
   | "not_in_album" | "not_in_specific_album";
 
 export interface ICondition {

@@ -29,6 +29,11 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   focal_length: "Focal Length",
   rating: "Rating",
   is_favorited: "Favorited",
+  file_size: "File Size",
+  filename: "File Name / Path",
+  file_extension: "File Extension",
+  face_count: "Face Count",
+  time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
@@ -201,6 +206,71 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
             <SelectItem value="false">Not Favorited</SelectItem>
           </SelectContent>
         </Select>
+      );
+    case "file_size":
+      return (
+        <div className="flex items-center gap-2">
+          <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder="Min MB" value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+          <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder="Max MB" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+        </div>
+      );
+    case "filename":
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Select value={condition.field || "name"} onValueChange={(v) => onChange({ ...condition, field: v })}>
+              <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">File Name</SelectItem>
+                <SelectItem value="path">File Path</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={condition.match || "contains"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contains">Contains</SelectItem>
+                <SelectItem value="not_contains">Does not contain</SelectItem>
+                <SelectItem value="starts_with">Starts with</SelectItem>
+                <SelectItem value="ends_with">Ends with</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input className="h-7 text-xs" placeholder="e.g. Screenshot" value={condition.text || ""} onChange={(e) => onChange({ ...condition, text: e.target.value })} />
+        </div>
+      );
+    case "file_extension":
+      return (
+        <div className="space-y-2">
+          <Select value={condition.match || "in"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="in">Is any of</SelectItem>
+              <SelectItem value="not_in">Is none of</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input className="h-7 text-xs" placeholder="e.g. png, gif, heic" value={condition.extensions || ""} onChange={(e) => onChange({ ...condition, extensions: e.target.value })} />
+        </div>
+      );
+    case "face_count":
+      return (
+        <div className="flex items-center gap-2">
+          <Input className="h-7 text-xs w-20" type="number" min={0} placeholder="Min" value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+          <Input className="h-7 text-xs w-20" type="number" min={0} placeholder="Max" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+          <span className="text-xs text-muted-foreground">faces</span>
+        </div>
+      );
+    case "time_of_day":
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
+            <Input className="h-7 text-xs w-16" type="number" min={0} max={23} placeholder="0" value={condition.fromHour ?? ""} onChange={(e) => onChange({ ...condition, fromHour: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input className="h-7 text-xs w-16" type="number" min={0} max={23} placeholder="23" value={condition.toHour ?? ""} onChange={(e) => onChange({ ...condition, toHour: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+            <span className="text-xs text-muted-foreground">h</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Hours 0–23; From &gt; To wraps past midnight (e.g. 22 to 5).</p>
+        </div>
       );
     case "person":
       return (
