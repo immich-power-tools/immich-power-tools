@@ -117,6 +117,36 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
       return sql`EXISTS (SELECT 1 FROM "asset_face" af WHERE af."assetId" = ${assets.id} AND af."personId" IN (${sql.raw(idList)}))`;
     }
 
+    case "tag": {
+      const ids: string[] = c.tagIds || [];
+      if (ids.length === 0) return undefined;
+
+      // A selected tag also matches assets tagged with any of its child tags
+      // (tag_closure holds the hierarchy, including self-references).
+      const descendants = (tagId: string) =>
+        sql`(SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" = ${tagId})`;
+
+      if (c.match === "not_contains") {
+        // Asset must not carry ANY of these tags (or their children)
+        const checks = ids.map((tid: string) =>
+          sql`NOT EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" = ${tid} OR ta."tagId" IN ${descendants(tid)}))`
+        );
+        return and(...checks)!;
+      }
+
+      if (c.match === "contains_all") {
+        // Asset must carry ALL of these tags (or their children)
+        const checks = ids.map((tid: string) =>
+          sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" = ${tid} OR ta."tagId" IN ${descendants(tid)}))`
+        );
+        return and(...checks)!;
+      }
+
+      // contains_any (default) — asset carries at least one of these tags (or their children)
+      const idList = ids.map((id: string) => `'${id}'`).join(",");
+      return sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" IN (${sql.raw(idList)}) OR ta."tagId" IN (SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" IN (${sql.raw(idList)}))))`;
+    }
+
     case "person_unnamed":
       if (c.match === "no_unnamed") {
         return sql`NOT EXISTS (SELECT 1 FROM "asset_face" af JOIN "person" p ON af."personId" = p.id WHERE af."assetId" = ${assets.id} AND (p.name = '' OR p.name IS NULL))`;

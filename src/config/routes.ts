@@ -7,6 +7,7 @@ export const LOGOUT_PATH = BASE_API_ENDPOINT + "/users/logout";
 
 
 export const LIST_PEOPLE_PATH = BASE_API_ENDPOINT + "/people/list";
+export const LIST_TAGS_PATH = BASE_API_ENDPOINT + "/tags";
 export const SEARCH_PEOPLE_PATH = BASE_PROXY_ENDPOINT + "/search/person";
 export const SIMILAR_FACES_PATH = (id: string) => BASE_API_ENDPOINT + "/people/" + id + "/similar-faces";
 export const PERSON_THUBNAIL_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/thumbnail/" + id;
