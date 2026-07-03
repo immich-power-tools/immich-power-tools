@@ -27,6 +27,7 @@ const actionItems: PaletteItem[] = [
   { type: "action", subType: "unfavorite", label: "Unfavorite", icon: HeartOff, color: "text-purple-500" },
   { type: "action", subType: "archive", label: "Archive", icon: Archive, color: "text-purple-500" },
   { type: "action", subType: "tag", label: "Add Tag", icon: Tag, color: "text-purple-500" },
+  { type: "action", subType: "remove_tag", label: "Remove Tag", icon: Tag, color: "text-purple-500" },
 ];
 
 function PaletteGroup({ title, items }: { title: string; items: PaletteItem[] }) {

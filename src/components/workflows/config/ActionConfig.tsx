@@ -115,7 +115,7 @@ export default function ActionConfig({ subType, config, onChange }: ActionConfig
     );
   }
 
-  if (subType === "tag") {
+  if (subType === "tag" || subType === "remove_tag") {
     return (
       <div className="space-y-2">
         <Label className="text-xs">Tag Name</Label>
@@ -125,6 +125,9 @@ export default function ActionConfig({ subType, config, onChange }: ActionConfig
           value={config.tagName || ""}
           onChange={(e) => onChange({ ...config, tagName: e.target.value })}
         />
+        {subType === "remove_tag" && (
+          <p className="text-[10px] text-muted-foreground">Removes this tag from matched assets. If the tag doesn&apos;t exist, nothing happens.</p>
+        )}
       </div>
     );
   }

@@ -180,6 +180,25 @@ export async function executeAction(
       }
     }
 
+    case "remove_tag": {
+      if (!config.tagName) throw new Error("Tag name is required");
+      try {
+        // Look up the tag by value (full path for nested tags) without creating it —
+        // removing a tag that doesn't exist is a no-op, not an error.
+        const result = await db.execute(
+          sql`SELECT id FROM "tag" WHERE "userId" = ${user.id} AND "value" = ${config.tagName} LIMIT 1`
+        );
+        const tagId = result.rows?.[0]?.id as string | undefined;
+        if (!tagId) {
+          return { action: "remove_tag", assetsProcessed: 0 };
+        }
+        await immichFetch(`/tags/${tagId}/assets`, "DELETE", { ids: assetIds }, user);
+        return { action: "remove_tag", assetsProcessed: assetIds.length };
+      } catch (e: any) {
+        return { action: "remove_tag", assetsProcessed: 0, error: e.message };
+      }
+    }
+
     default:
       return { action: subType, assetsProcessed: 0, error: `Unknown action: ${subType}` };
   }
