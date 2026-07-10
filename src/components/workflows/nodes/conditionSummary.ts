@@ -19,6 +19,11 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   resolution: "Resolution",
   rating: "Rating",
   is_favorited: "Favorited",
+  file_size: "File Size",
+  filename: "File Name / Path",
+  file_extension: "Extension",
+  face_count: "Faces",
+  time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
@@ -108,6 +113,32 @@ export function formatConditionSummary(c: ICondition): string {
     }
     case "is_favorited":
       return c.value === false ? "Not Favorited" : "Favorited";
+    case "file_size": {
+      if (c.min != null && c.max != null) return `${label}: ${c.min}–${c.max}MB`;
+      if (c.min != null) return `${label}: ≥${c.min}MB`;
+      if (c.max != null) return `${label}: ≤${c.max}MB`;
+      return label;
+    }
+    case "filename": {
+      if (!c.text) return label;
+      const field = c.field === "path" ? "Path" : "Name";
+      const matchNames: Record<string, string> = { contains: "contains", not_contains: "doesn't contain", starts_with: "starts with", ends_with: "ends with" };
+      return `${field} ${matchNames[c.match] || "contains"}: ${c.text}`;
+    }
+    case "file_extension": {
+      if (!c.extensions) return label;
+      return `${label} ${c.match === "not_in" ? "none of" : "any of"}: ${c.extensions}`;
+    }
+    case "face_count": {
+      if (c.min != null && c.max != null) return c.min === c.max ? `${label}: ${c.min}` : `${label}: ${c.min}–${c.max}`;
+      if (c.min != null) return `${label}: ≥${c.min}`;
+      if (c.max != null) return `${label}: ≤${c.max}`;
+      return label;
+    }
+    case "time_of_day": {
+      if (c.fromHour == null || c.toHour == null) return label;
+      return `${label}: ${c.fromHour}:00–${c.toHour}:59`;
+    }
     case "not_in_album":
       return label;
     case "not_in_specific_album":

@@ -30,7 +30,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const keyData = await keyRes.json();
     const granted: string[] = keyData.permissions ?? [];
-    const missing = REQUIRED_PERMISSIONS.filter((p) => !granted.includes(p));
+    // A key created with the "All" checkbox reports its permissions as ["all"],
+    // which grants every permission without listing them individually.
+    const missing = granted.includes("all")
+      ? []
+      : REQUIRED_PERMISSIONS.filter((p) => !granted.includes(p));
 
     return res.status(200).json({
       valid: missing.length === 0,
