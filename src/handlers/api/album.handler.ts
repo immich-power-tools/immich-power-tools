@@ -60,7 +60,7 @@ export const listPotentialTripAssets = async (
   return API.get(LIST_POTENTIAL_ALBUMS_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
 }
 
-export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string }) => {
+export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string, includeShared?: boolean }) => {
   return API.get(LIST_ALBUMS_PATH, filters);
 }
 export const getAlbumInfo = async (id: string) => {

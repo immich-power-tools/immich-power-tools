@@ -4,7 +4,7 @@ import { db } from "@/config/db";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { NextApiResponse } from "next";
 import { albums } from "@/schema/albums.schema";
-import { count, desc, eq, min, max, sql, and, sum, isNotNull } from "drizzle-orm";
+import { count, desc, eq, inArray, min, max, sql, and, sum, isNotNull } from "drizzle-orm";
 import { assets } from "@/schema/assets.schema";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
 import { albumUsers } from "@/schema/albumUsers.schema";
@@ -50,7 +50,10 @@ export default async function handler(
   if (!currentUser) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const { sortBy = 'lastPhotoDate', sortOrder = 'desc' } = req.query as { sortBy: string, sortOrder: string };
+  const { sortBy = 'lastPhotoDate', sortOrder = 'desc', includeShared } = req.query as { sortBy: string, sortOrder: string, includeShared?: string };
+  // Shared albums grant "editor" role to collaborators, which is enough to
+  // add/upload assets. "viewer" (read-only shares) is deliberately excluded.
+  const roles = includeShared === 'true' ? ["owner", "editor"] : ["owner"];
 
   const dbAlbums = await db.select({
     id: albums.id,
@@ -65,12 +68,13 @@ export default async function handler(
     order: albums.order,
     isActivityEnabled: albums.isActivityEnabled,
     ownerId: albumUsers.userId,
+    myRole: albumUsers.role,
     description: albums.description,
     lastModifiedAssetTimestamp: max(exif.dateTimeOriginal),
     faceCount: count(sql<string>`DISTINCT ${assetFaces.personId}`), // Ensure unique personId
   })
     .from(albums)
-    .innerJoin(albumUsers, and(eq(albums.id, albumUsers.albumId), eq(albumUsers.role, "owner")))
+    .innerJoin(albumUsers, and(eq(albums.id, albumUsers.albumId), inArray(albumUsers.role, roles)))
     .leftJoin(albumsAssetsAssets, eq(albums.id, albumsAssetsAssets.albumId))
     .leftJoin(assets, and(
       eq(albumsAssetsAssets.assetId, assets.id),

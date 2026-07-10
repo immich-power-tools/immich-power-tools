@@ -6,6 +6,8 @@ export interface IAlbum {
   updatedAt:                  Date;
   id:                         string;
   ownerId:                    string;
+  /** Current user's role on this album ("owner" | "editor" | "viewer"), when returned by an endpoint that includes shared albums. */
+  myRole?:                    string;
   owner?:                      IAlbumOwner;
   albumUsers?:                 any[];
   shared?:                     boolean;
