@@ -49,7 +49,7 @@ export interface IWorkflowWithDetails extends IWorkflow {
 }
 
 export type ConditionType =
-  | "person" | "person_unnamed"
+  | "person" | "person_unnamed" | "tag"
   | "city" | "state" | "country" | "geo_radius"
   | "date_range" | "date_relative" | "day_of_week"
   | "camera_make" | "camera_model" | "lens"

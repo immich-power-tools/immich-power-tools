@@ -3,6 +3,7 @@ import { ICondition, ConditionType } from "@/types/workflow";
 const conditionTypeLabels: Record<ConditionType, string> = {
   person: "Person",
   person_unnamed: "Unnamed People",
+  tag: "Tag",
   city: "City",
   state: "State",
   country: "Country",
@@ -51,6 +52,13 @@ export function formatConditionSummary(c: ICondition): string {
     }
     case "person_unnamed":
       return label;
+    case "tag": {
+      const values: string[] = c.tagValues || [];
+      const match = matchLabels[c.match] || c.match || "any of";
+      if (values.length === 0) return `${label}: (none selected)`;
+      const valueStr = values.length <= 2 ? values.join(", ") : `${values[0]}, ${values[1]} +${values.length - 2}`;
+      return `${label} ${match}: ${valueStr}`;
+    }
     case "city":
     case "state":
     case "country": {

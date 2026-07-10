@@ -4,8 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ICondition, ConditionType } from "@/types/workflow";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, Tag } from "lucide-react";
 import { listPeople } from "@/handlers/api/people.handler";
+import { listTags, ITag } from "@/handlers/api/tag.handler";
 import { IPerson } from "@/types/person";
 import { PERSON_THUBNAIL_PATH } from "@/config/routes";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const conditionTypeLabels: Record<ConditionType, string> = {
   person: "Person",
   person_unnamed: "Unnamed People",
+  tag: "Tag",
   city: "City",
   state: "State",
   country: "Country",
@@ -119,6 +121,95 @@ function PersonPicker({ selectedIds, onChange }: PersonPickerProps) {
                     <img src={PERSON_THUBNAIL_PATH(person.id)} alt="" className="h-6 w-6 rounded-full object-cover" />
                     <span className="text-xs truncate flex-1">{person.name || "Unknown"}</span>
                     <Check className={cn("h-3 w-3", selectedSet.has(person.id) ? "opacity-100" : "opacity-0")} />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+interface TagPickerProps {
+  selectedIds: string[];
+  onChange: (tagIds: string[], tagValues: string[]) => void;
+}
+
+function TagPicker({ selectedIds, onChange }: TagPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [tags, setTags] = useState<ITag[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    listTags()
+      .then((res) => setTags(res.tags))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selectedSet = new Set(selectedIds || []);
+  const selectedTags = tags.filter((t) => selectedSet.has(t.id));
+
+  const toggleTag = (tag: ITag) => {
+    let nextIds: string[];
+    let nextValues: string[];
+    if (selectedSet.has(tag.id)) {
+      nextIds = selectedIds.filter((id) => id !== tag.id);
+      nextValues = selectedTags.filter((t) => t.id !== tag.id).map((t) => t.value);
+    } else {
+      nextIds = [...selectedIds, tag.id];
+      nextValues = [...selectedTags.map((t) => t.value), tag.value];
+    }
+    onChange(nextIds, nextValues);
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Selected tag chips */}
+      {selectedTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedTags.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => toggleTag(t)}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted hover:bg-destructive/10 transition-colors group"
+            >
+              <Tag className="h-2.5 w-2.5" style={t.color ? { color: t.color } : undefined} />
+              <span className="text-[10px] font-medium">{t.value}</span>
+              <X className="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Picker */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className="flex items-center gap-2 h-7 px-2 w-full border rounded text-xs bg-background hover:bg-muted transition-colors">
+            <span className="text-muted-foreground">
+              {selectedIds.length === 0 ? "Select tags..." : "Add more..."}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0 z-[10000]" align="start">
+          <Command>
+            <CommandInput placeholder="Search tags..." className="text-xs" />
+            <CommandList>
+              <CommandEmpty>{loading ? "Loading..." : "No tags found."}</CommandEmpty>
+              <CommandGroup>
+                {tags.map((tag) => (
+                  <CommandItem
+                    key={tag.id}
+                    value={tag.value}
+                    onSelect={() => toggleTag(tag)}
+                    className="flex items-center gap-2"
+                  >
+                    <Tag className="h-3 w-3" style={tag.color ? { color: tag.color } : undefined} />
+                    <span className="text-xs truncate flex-1">{tag.value}</span>
+                    <Check className={cn("h-3 w-3", selectedSet.has(tag.id) ? "opacity-100" : "opacity-0")} />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -307,6 +398,24 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
             selectedIds={condition.personIds || (condition.personId ? [condition.personId] : [])}
             onChange={(personIds, personNames) => onChange({ ...condition, personIds, personNames })}
           />
+        </div>
+      );
+    case "tag":
+      return (
+        <div className="space-y-2">
+          <Select value={condition.match || "contains_any"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="contains_any">Has any of</SelectItem>
+              <SelectItem value="contains_all">Has all of</SelectItem>
+              <SelectItem value="not_contains">Has none of</SelectItem>
+            </SelectContent>
+          </Select>
+          <TagPicker
+            selectedIds={condition.tagIds || []}
+            onChange={(tagIds, tagValues) => onChange({ ...condition, tagIds, tagValues })}
+          />
+          <p className="text-[10px] text-muted-foreground">Selected tags also match their child tags.</p>
         </div>
       );
     case "geo_radius":
