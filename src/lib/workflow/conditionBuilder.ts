@@ -143,8 +143,8 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
       }
 
       // contains_any (default) — asset carries at least one of these tags (or their children)
-      const idList = ids.map((id: string) => `'${id}'`).join(",");
-      return sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" IN (${sql.raw(idList)}) OR ta."tagId" IN (SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" IN (${sql.raw(idList)}))))`;
+      const idParams = sql.join(ids.map((id: string) => sql`${id}`), sql`, `);
+      return sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" IN (${idParams}) OR ta."tagId" IN (SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" IN (${idParams}))))`;
     }
 
     case "person_unnamed":
