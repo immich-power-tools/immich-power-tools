@@ -54,7 +54,7 @@ export type ConditionType =
   | "date_range" | "date_relative" | "day_of_week"
   | "camera_make" | "camera_model" | "lens"
   | "asset_type" | "iso_range" | "focal_length"
-  | "rating" | "is_favorited"
+  | "rating" | "is_favorited" | "resolution"
   | "file_size" | "filename" | "file_extension"
   | "face_count" | "time_of_day"
   | "not_in_album" | "not_in_specific_album";

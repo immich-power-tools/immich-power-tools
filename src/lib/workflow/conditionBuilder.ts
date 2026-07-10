@@ -92,6 +92,21 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
       return parts.length > 0 ? and(...parts)! : undefined;
     }
 
+    case "resolution": {
+      // Short/long edge are orientation-agnostic; megapixels = width × height / 1e6.
+      const metric = c.metric || "megapixels";
+      const value =
+        metric === "short_edge"
+          ? sql`LEAST(${exif.exifImageWidth}, ${exif.exifImageHeight})`
+          : metric === "long_edge"
+            ? sql`GREATEST(${exif.exifImageWidth}, ${exif.exifImageHeight})`
+            : sql`(${exif.exifImageWidth}::bigint * ${exif.exifImageHeight}) / 1000000.0`;
+      const parts: SQL[] = [];
+      if (c.min !== undefined && c.min !== null) parts.push(sql`${value} >= ${c.min}`);
+      if (c.max !== undefined && c.max !== null) parts.push(sql`${value} <= ${c.max}`);
+      return parts.length > 0 ? and(...parts)! : undefined;
+    }
+
     case "file_size": {
       // min/max in megabytes (fractional allowed)
       const parts: SQL[] = [];
