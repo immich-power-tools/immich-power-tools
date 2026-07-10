@@ -8,6 +8,8 @@
  * Pure functions — no DB, no network. Easy to unit-test.
  */
 
+import { differenceInCalendarDays, parseISO } from "date-fns";
+
 export interface DaySignal {
   /** YYYY-MM-DD */
   date: string;
@@ -160,12 +162,16 @@ export function clusterTrips(days: DaySignal[], opts: ClusterOptions): Trip[] {
         k += 1;
         continue;
       }
-      // Count consecutive non-away days
-      const gapStart = k;
+      // Skip consecutive non-away days, then compare actual elapsed calendar
+      // days (not array-index distance) against the next away day — `days`
+      // only contains dates with ≥1 photo, so a months-long photo-less gap
+      // must not look "adjacent" just because no entries sit between them.
       while (k < sorted.length && !away[k]) k += 1;
-      const gapLen = k - gapStart;
-      if (gapLen > opts.gapTolerance) break; // close trip at endIdx
-      // else tolerated; `k` now points at next away day (or end)
+      if (k < sorted.length) {
+        const gapDays = differenceInCalendarDays(parseISO(sorted[k].date), parseISO(sorted[endIdx].date));
+        if (gapDays > opts.gapTolerance) break; // close trip at endIdx
+      }
+      // else tolerated (or no more away days left); `k` now points at next away day (or end)
     }
 
     const slice = sorted.slice(i, endIdx + 1);
