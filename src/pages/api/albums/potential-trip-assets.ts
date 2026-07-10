@@ -24,7 +24,6 @@ const SELECT_ORPHAN_RANGE = (
   SELECT
       a."id",
       a."ownerId",
-      a."deviceId",
       a."type",
       a."originalPath",
       a."isFavorite",
