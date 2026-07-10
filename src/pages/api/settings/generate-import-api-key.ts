@@ -5,17 +5,10 @@ import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { getUserHeaders } from "@/helpers/user.helper";
 import { and, eq } from "drizzle-orm";
 import { NextApiRequest, NextApiResponse } from "next";
+import { IMPORT_PERMISSIONS, getPermissionNames } from "@/config/permissions";
 
 export const IMPORT_API_KEY_SETTING = "import_api_key";
 const IMPORT_KEY_NAME = "Power Tools Import Key";
-const IMPORT_PERMISSIONS = [
-  "asset.read",
-  "asset.upload",
-  "album.read",
-  "album.create",
-  "album.update",
-  "tag.create",
-];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method not allowed" });
@@ -26,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const immichRes = await fetch(`${ENV.IMMICH_URL}/api/api-keys`, {
     method: "POST",
     headers: getUserHeaders(currentUser, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ name: IMPORT_KEY_NAME, permissions: IMPORT_PERMISSIONS }),
+    body: JSON.stringify({ name: IMPORT_KEY_NAME, permissions: getPermissionNames(IMPORT_PERMISSIONS) }),
   });
 
   if (!immichRes.ok) {

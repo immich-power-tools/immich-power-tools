@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { detectNextcloud, checkPasswordProtection, listNextcloudFiles } from "./import-shared/nextcloud";
+import { detectEnte, fetchEnteAlbum } from "./import-shared/ente";
 
 interface IAlbumContributorCount {
   userId: string;
@@ -11,28 +12,10 @@ interface ImmichOwner {
   email?: string | null;
 }
 
-interface ImmichExifInfo {
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  description?: string | null;
-  fileSizeInByte?: number | null;
-}
-
-interface ImmichAsset {
-  id: string;
-  originalFileName: string;
-  type: string;
-  fileCreatedAt?: string | null;
-  localDateTime?: string | null;
-  thumbhash?: string | null;
-  exifInfo?: ImmichExifInfo | null;
-}
-
 interface ImmichAlbumResponse {
   albumName: string;
   assetCount?: number;
-  owner?: ImmichOwner | null;
+  albumUsers?: { user: ImmichOwner; role: string }[];
   description?: string | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -41,7 +24,6 @@ interface ImmichAlbumResponse {
   lastModifiedAssetTimestamp?: string | null;
   order?: string | null;
   contributorCounts?: IAlbumContributorCount[];
-  assets: ImmichAsset[];
 }
 
 interface ImmichSharedLinkResponse {
@@ -58,7 +40,7 @@ interface ImmichSharedLinkResponse {
 
 interface IImportSharedAsset {
   id: string;
-  originalFileName: string;
+  originalFileName?: string;
   type: string;
   fileCreatedAt?: string | null;
   localDateTime?: string | null;
@@ -66,6 +48,19 @@ interface IImportSharedAsset {
   location?: string | null;
   thumbhash?: string | null;
   fileSizeInByte?: number | null;
+  // Ente-specific encryption artifacts (optional)
+  enteFileKey?: string;
+  enteFileDecryptionHeader?: string;
+  enteThumbnailDecryptionHeader?: string;
+}
+
+interface ITimeBucketAssets {
+  id: string[];
+  fileCreatedAt: string[];
+  isImage: boolean[];
+  thumbhash: (string | null)[];
+  city?: (string | null)[];
+  country?: (string | null)[];
 }
 
 interface IImportSharedAlbum {
@@ -84,7 +79,7 @@ interface IImportSharedAlbum {
 }
 
 interface IImportSharedResponse {
-  platform: "immich" | "nextcloud";
+  platform: "immich" | "nextcloud" | "ente";
   link: string;
   origin: string;
   key: string;
@@ -98,6 +93,9 @@ interface IImportSharedResponse {
     showMetadata?: boolean;
   };
   album: IImportSharedAlbum | null;
+  // Ente-specific (optional)
+  enteApiBase?: string;
+  enteAlbumKey?: string;
 }
 
 const respondWithError = (res: NextApiResponse, status: number, message: string) => {
@@ -122,13 +120,39 @@ const parseSharedLink = (link: string) => {
   }
 };
 
-const buildLocationString = (exif?: ImmichExifInfo | null) => {
-  if (!exif) {
-    return null;
+const enumerateAlbumAssets = async (
+  origin: string,
+  albumId: string,
+  authQuery: string
+): Promise<IImportSharedAsset[]> => {
+  const buckets = await fetchJson<{ timeBucket: string }[]>(
+    `${origin}/api/timeline/buckets?albumId=${albumId}&${authQuery}`
+  );
+
+  const assets: IImportSharedAsset[] = [];
+  for (const bucket of buckets) {
+    const columns = await fetchJson<ITimeBucketAssets>(
+      `${origin}/api/timeline/bucket?albumId=${albumId}&timeBucket=${encodeURIComponent(bucket.timeBucket)}&${authQuery}`
+    );
+    const count = columns.id?.length ?? 0;
+    for (let i = 0; i < count; i++) {
+      const city = columns.city?.[i] ?? null;
+      const country = columns.country?.[i] ?? null;
+      const location = [city, country].filter(Boolean).join(", ") || null;
+      const fileCreatedAt = columns.fileCreatedAt?.[i] ?? null;
+      assets.push({
+        id: columns.id[i],
+        type: columns.isImage?.[i] === false ? "VIDEO" : "IMAGE",
+        fileCreatedAt,
+        localDateTime: fileCreatedAt,
+        description: null,
+        location,
+        thumbhash: columns.thumbhash?.[i] ?? null,
+        fileSizeInByte: null,
+      });
+    }
   }
-  const parts = [exif.city, exif.state, exif.country]
-    .filter((value): value is string => !!value && value.trim().length > 0);
-  return parts.length > 0 ? parts.join(", ") : null;
+  return assets;
 };
 
 const fetchJson = async <T>(url: string) => {
@@ -246,10 +270,90 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  // ── Ente flow ──
+  const ente = detectEnte(link);
+  if (ente) {
+    try {
+      const result = await fetchEnteAlbum(link);
+
+      const assets: IImportSharedAsset[] = result.files.map((f) => ({
+        id: f.id,
+        originalFileName: f.title,
+        type: f.type,
+        fileCreatedAt: f.creationTime
+          ? new Date(f.creationTime / 1000).toISOString()
+          : null,
+        localDateTime: f.modificationTime
+          ? new Date(f.modificationTime / 1000).toISOString()
+          : null,
+        description: null,
+        location: null,
+        thumbhash: null,
+        fileSizeInByte: f.fileSize ?? null,
+        enteFileKey: f.fileKey,
+        enteFileDecryptionHeader: f.fileDecryptionHeader,
+        enteThumbnailDecryptionHeader: f.thumbnailDecryptionHeader,
+      }));
+
+      const dates = result.files
+        .map((f) => f.creationTime)
+        .filter((t) => t > 0);
+      const startDate =
+        dates.length > 0
+          ? new Date(Math.min(...dates) / 1000).toISOString()
+          : null;
+      const endDate =
+        dates.length > 0
+          ? new Date(Math.max(...dates) / 1000).toISOString()
+          : null;
+
+      const responseBody: IImportSharedResponse = {
+        platform: "ente",
+        link: link.trim(),
+        origin: result.apiBase,
+        key: result.token,
+        sharedLink: {
+          id: result.token,
+          type: "ALBUM",
+          createdAt: new Date().toISOString(),
+          expiresAt: null,
+          allowUpload: false,
+          allowDownload: true,
+          showMetadata: true,
+        },
+        album: {
+          albumName: result.albumName,
+          assetCount: assets.length,
+          owner: null,
+          description: null,
+          startDate,
+          endDate,
+          shared: true,
+          hasSharedLink: true,
+          lastModifiedAssetTimestamp: endDate,
+          order: null,
+          contributorCounts: [],
+          assets,
+        },
+        enteApiBase: result.apiBase,
+        enteAlbumKey: result.albumKeyB58,
+      };
+
+      return res.status(200).json(responseBody);
+    } catch (error: any) {
+      console.error("Ente import shared error", error);
+      return respondWithError(
+        res,
+        500,
+        error?.message ?? "Failed to fetch Ente album"
+      );
+    }
+  }
+
   // ── Immich flow ──
   const parsed = parseSharedLink(link);
   if (!parsed) {
-    return respondWithError(res, 400, "Invalid share link. Supported: Immich or Nextcloud share URLs.");
+    return respondWithError(res, 400, "Invalid share link. Supported: Immich, Nextcloud, or Ente share URLs.");
   }
 
   const authQuery = password
@@ -266,25 +370,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (albumId) {
       const album = await fetchJson<ImmichAlbumResponse>(
-        `${parsed.origin}/api/albums/${albumId}?${authQuery}&withoutAssets=false`
+        `${parsed.origin}/api/albums/${albumId}?${authQuery}`
       );
 
-      const assets = (album.assets || []).map((asset) => ({
-        id: asset.id,
-        originalFileName: asset.originalFileName,
-        type: asset.type,
-        fileCreatedAt: asset.fileCreatedAt ?? null,
-        localDateTime: asset.localDateTime ?? null,
-        description: asset.exifInfo?.description ?? null,
-        location: buildLocationString(asset.exifInfo),
-        thumbhash: asset.thumbhash ?? null,
-        fileSizeInByte: asset.exifInfo?.fileSizeInByte ?? null,
-      } satisfies IImportSharedAsset));
+      const assets = await enumerateAlbumAssets(parsed.origin, albumId, authQuery);
 
       albumResult = {
         albumName: album.albumName,
         assetCount: album.assetCount ?? assets.length,
-        owner: album.owner ?? null,
+        owner: album.albumUsers?.[0]?.user ?? null,
         description: album.description ?? null,
         startDate: album.startDate ?? null,
         endDate: album.endDate ?? null,

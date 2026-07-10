@@ -23,19 +23,24 @@ export function PeopleFilters() {
   const { updateContext, page, maximumAssetCount, type = "all", query = "", visibility = "all" } = filters;
 
   const handleChange = (data: Partial<IPersonListFilters>) => {
-    updateContext(data);
+    // Any filter change other than an explicit page navigation must reset
+    // pagination: without this, typing a name while on page 2 keeps page=2
+    // and the now-smaller result set returns nothing until the user clicks
+    // back to page 1 manually.
+    const nextData = "page" in data ? data : { ...data, page: 1 };
+    updateContext(nextData);
     router.push({
       pathname: router.pathname,
       query: {
         ...router.query,
-        ...data,  
-        page: data.page || undefined,
-        type: data.type || undefined,
-        visibility: data.visibility || undefined,
-        query: data.query || undefined,
-        maximumAssetCount: data.maximumAssetCount || undefined,
-        sort: data.sort || undefined,
-        sortOrder: data.sortOrder || undefined,
+        ...nextData,
+        page: nextData.page || undefined,
+        type: nextData.type || undefined,
+        visibility: nextData.visibility || undefined,
+        query: nextData.query || undefined,
+        maximumAssetCount: nextData.maximumAssetCount || undefined,
+        sort: nextData.sort || undefined,
+        sortOrder: nextData.sortOrder || undefined,
       },
     });
   }
@@ -109,10 +114,11 @@ export function PeopleFilters() {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant={"secondary"}
-            onClick={() => handleChange({ page: nextPage })}
-          >
+          {/* No onClick here: DropdownMenuTrigger handles the popover open/close
+              itself. The previous handler was a copy-paste of the page-next
+              button and advanced the page every time the user opened the
+              sort menu. */}
+          <Button variant={"secondary"}>
             <SortDesc size={16} />
           </Button>
         </DropdownMenuTrigger>

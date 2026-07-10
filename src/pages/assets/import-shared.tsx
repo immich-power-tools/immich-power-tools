@@ -22,14 +22,7 @@ import PageLayout from "@/components/layouts/PageLayout";
 import Header from "@/components/shared/Header";
 import ApiKeyGate from "@/components/shared/ApiKeyGate";
 
-const IMPORT_PERMISSIONS = [
-  { name: "asset.read", description: "Check for existing assets" },
-  { name: "asset.upload", description: "Upload new assets" },
-  { name: "album.read", description: "Read album data" },
-  { name: "album.create", description: "Create new albums" },
-  { name: "album.update", description: "Add assets to albums" },
-  { name: "tag.create", description: "Tag imported assets" },
-];
+import { IMPORT_PERMISSIONS } from "@/config/permissions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -73,6 +66,10 @@ interface IImportSharedAsset {
   duration?: string | null;
   isFavorite?: boolean;
   isArchived?: boolean;
+  // Ente-specific encryption artifacts (optional)
+  enteFileKey?: string;
+  enteFileDecryptionHeader?: string;
+  enteThumbnailDecryptionHeader?: string;
 }
 
 interface IImportSharedAlbum {
@@ -94,7 +91,7 @@ interface IImportSharedAlbum {
 }
 
 interface IImportSharedResponse {
-  platform: "immich" | "nextcloud";
+  platform: "immich" | "nextcloud" | "ente";
   link: string;
   origin: string;
   key: string;
@@ -108,6 +105,9 @@ interface IImportSharedResponse {
     showMetadata?: boolean;
   };
   album: IImportSharedAlbum | null;
+  // Ente-specific (optional)
+  enteApiBase?: string;
+  enteAlbumKey?: string;
 }
 
 const formatDate = (value?: string | null) => {
@@ -347,6 +347,11 @@ export default function ImportSharedPage() {
       platform: sharedData.platform,
     });
     if (asset.thumbhash) params.set("thumbhash", asset.thumbhash);
+    if (sharedData.platform === "ente") {
+      if (asset.enteFileKey) params.set("enteFileKey", asset.enteFileKey);
+      if (asset.enteThumbnailDecryptionHeader) params.set("enteThumbnailHeader", asset.enteThumbnailDecryptionHeader);
+      if (sharedData.enteApiBase) params.set("apiBase", sharedData.enteApiBase);
+    }
     return `/api/import-shared/thumbnail?${params.toString()}`;
   };
 
@@ -375,6 +380,11 @@ export default function ImportSharedPage() {
       platform: sharedData.platform,
     });
     if (asset.thumbhash) params.set("thumbhash", asset.thumbhash);
+    if (sharedData.platform === "ente") {
+      if (asset.enteFileKey) params.set("enteFileKey", asset.enteFileKey);
+      if (asset.enteThumbnailDecryptionHeader) params.set("enteThumbnailHeader", asset.enteThumbnailDecryptionHeader);
+      if (sharedData.enteApiBase) params.set("apiBase", sharedData.enteApiBase);
+    }
     return `/api/import-shared/thumbnail?${params.toString()}`;
   };
 
@@ -407,9 +417,14 @@ export default function ImportSharedPage() {
     setImportAllLoading(true);
     try {
       const isNextcloud = sharedData.platform === "nextcloud";
+      const isEnte = sharedData.platform === "ente";
       const urlConfig: Record<string, string> = { key: sharedData.key };
       if (isNextcloud && shareLinkPassword) {
         urlConfig.password = shareLinkPassword;
+      }
+      if (isEnte) {
+        if (sharedData.enteApiBase) urlConfig.apiBase = sharedData.enteApiBase;
+        if (sharedData.enteAlbumKey) urlConfig.albumKey = sharedData.enteAlbumKey;
       }
 
       const job = await createImportJob({
@@ -427,6 +442,11 @@ export default function ImportSharedPage() {
           isFavorite: asset.isFavorite ?? false,
           isArchived: asset.isArchived ?? false,
           ...(isNextcloud ? { relativePath: asset.id } : {}),
+          ...(isEnte ? {
+            enteFileKey: asset.enteFileKey ?? null,
+            enteFileDecryptionHeader: asset.enteFileDecryptionHeader ?? null,
+            enteThumbnailDecryptionHeader: asset.enteThumbnailDecryptionHeader ?? null,
+          } : {}),
         })),
       });
       setActiveJobId(job.jobId);
@@ -501,7 +521,7 @@ export default function ImportSharedPage() {
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">Import a shared album</h1>
               <p className="text-sm text-muted-foreground">
-                Paste a public shared link from <strong className="font-medium">Immich</strong> or <strong className="font-medium">Nextcloud</strong> to import its assets into your Immich instance.
+                Paste a public shared link from <strong className="font-medium">Immich</strong>, <strong className="font-medium">Nextcloud</strong>, or <strong className="font-medium">Ente</strong> to import its assets into your Immich instance.
               </p>
             </div>
 
@@ -518,7 +538,7 @@ export default function ImportSharedPage() {
                         setShareLinkPassword("");
                       }
                     }}
-                    placeholder="Immich or Nextcloud share URL"
+                    placeholder="Immich, Nextcloud, or Ente share URL"
                     type="url"
                     required
                     className="pl-9"
@@ -717,7 +737,7 @@ export default function ImportSharedPage() {
                         : "hover:opacity-90"
                     }`}
                     onClick={() => {
-                      if (isVideoAsset) {
+                      if (isVideoAsset && sharedData?.platform !== "ente") {
                         setActiveImageAsset(null);
                         setActiveVideoAsset(asset);
                         setPreviewLoading(false);
@@ -758,8 +778,8 @@ export default function ImportSharedPage() {
                       />
                     </div>
 
-                    {/* Video play indicator */}
-                    {isVideoAsset && (
+                    {/* Video play indicator (hidden for Ente — no video preview) */}
+                    {isVideoAsset && sharedData?.platform !== "ente" && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="rounded-full bg-black/50 p-2">
                           <svg className="h-4 w-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">

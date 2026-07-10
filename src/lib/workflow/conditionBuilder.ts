@@ -92,6 +92,78 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
       return parts.length > 0 ? and(...parts)! : undefined;
     }
 
+    case "resolution": {
+      // Short/long edge are orientation-agnostic; megapixels = width × height / 1e6.
+      const metric = c.metric || "megapixels";
+      const value =
+        metric === "short_edge"
+          ? sql`LEAST(${exif.exifImageWidth}, ${exif.exifImageHeight})`
+          : metric === "long_edge"
+            ? sql`GREATEST(${exif.exifImageWidth}, ${exif.exifImageHeight})`
+            : sql`(${exif.exifImageWidth}::bigint * ${exif.exifImageHeight}) / 1000000.0`;
+      const parts: SQL[] = [];
+      if (c.min !== undefined && c.min !== null) parts.push(sql`${value} >= ${c.min}`);
+      if (c.max !== undefined && c.max !== null) parts.push(sql`${value} <= ${c.max}`);
+      return parts.length > 0 ? and(...parts)! : undefined;
+    }
+
+    case "file_size": {
+      // min/max in megabytes (fractional allowed)
+      const parts: SQL[] = [];
+      if (c.min !== undefined && c.min !== null) parts.push(sql`${exif.fileSizeInByte} >= ${Math.round(c.min * 1048576)}`);
+      if (c.max !== undefined && c.max !== null) parts.push(sql`${exif.fileSizeInByte} <= ${Math.round(c.max * 1048576)}`);
+      return parts.length > 0 ? and(...parts)! : undefined;
+    }
+
+    case "filename": {
+      if (!c.text) return undefined;
+      const column = c.field === "path" ? assets.originalPath : assets.originalFileName;
+      // Escape LIKE wildcards so user text is matched literally
+      const escaped = c.text.replace(/([\\%_])/g, "\\$1");
+      const match = c.match || "contains";
+      const pattern =
+        match === "starts_with" ? `${escaped}%`
+        : match === "ends_with" ? `%${escaped}`
+        : `%${escaped}%`;
+      return match === "not_contains"
+        ? sql`${column} NOT ILIKE ${pattern}`
+        : sql`${column} ILIKE ${pattern}`;
+    }
+
+    case "file_extension": {
+      const raw: string = c.extensions || "";
+      const exts = raw
+        .split(",")
+        .map((e: string) => e.trim().replace(/^\./, "").toLowerCase())
+        .filter(Boolean);
+      if (exts.length === 0) return undefined;
+      // Extension = text after the last dot; files without one never match either mode
+      const extExpr = sql`lower(substring(${assets.originalFileName} from '\\.([^.]+)$'))`;
+      const list = exts.map((e: string) => `'${e.replace(/'/g, "''")}'`).join(",");
+      return c.match === "not_in"
+        ? sql`${extExpr} NOT IN (${sql.raw(list)})`
+        : sql`${extExpr} IN (${sql.raw(list)})`;
+    }
+
+    case "face_count": {
+      const faceCount = sql`(SELECT count(*) FROM "asset_face" af WHERE af."assetId" = ${assets.id} AND af."deletedAt" IS NULL AND af."isVisible" = true)`;
+      const parts: SQL[] = [];
+      if (c.min !== undefined && c.min !== null) parts.push(sql`${faceCount} >= ${c.min}`);
+      if (c.max !== undefined && c.max !== null) parts.push(sql`${faceCount} <= ${c.max}`);
+      return parts.length > 0 ? and(...parts)! : undefined;
+    }
+
+    case "time_of_day": {
+      if (c.fromHour == null || c.toHour == null) return undefined;
+      // localDateTime holds the capture wall-clock time, so no timezone math needed
+      const hour = sql`EXTRACT(HOUR FROM ${assets.localDateTime})`;
+      if (c.fromHour <= c.toHour) {
+        return sql`${hour} BETWEEN ${c.fromHour} AND ${c.toHour}`;
+      }
+      // From > To wraps past midnight, e.g. 22–5 = evening through early morning
+      return sql`(${hour} >= ${c.fromHour} OR ${hour} <= ${c.toHour})`;
+    }
+
     case "person": {
       const ids: string[] = c.personIds || (c.personId ? [c.personId] : []);
       if (ids.length === 0) return undefined;
@@ -115,6 +187,36 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
       // contains_any (default) — asset contains at least one of these people
       const idList = ids.map((id: string) => `'${id}'`).join(",");
       return sql`EXISTS (SELECT 1 FROM "asset_face" af WHERE af."assetId" = ${assets.id} AND af."personId" IN (${sql.raw(idList)}))`;
+    }
+
+    case "tag": {
+      const ids: string[] = c.tagIds || [];
+      if (ids.length === 0) return undefined;
+
+      // A selected tag also matches assets tagged with any of its child tags
+      // (tag_closure holds the hierarchy, including self-references).
+      const descendants = (tagId: string) =>
+        sql`(SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" = ${tagId})`;
+
+      if (c.match === "not_contains") {
+        // Asset must not carry ANY of these tags (or their children)
+        const checks = ids.map((tid: string) =>
+          sql`NOT EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" = ${tid} OR ta."tagId" IN ${descendants(tid)}))`
+        );
+        return and(...checks)!;
+      }
+
+      if (c.match === "contains_all") {
+        // Asset must carry ALL of these tags (or their children)
+        const checks = ids.map((tid: string) =>
+          sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" = ${tid} OR ta."tagId" IN ${descendants(tid)}))`
+        );
+        return and(...checks)!;
+      }
+
+      // contains_any (default) — asset carries at least one of these tags (or their children)
+      const idParams = sql.join(ids.map((id: string) => sql`${id}`), sql`, `);
+      return sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id} AND (ta."tagId" IN (${idParams}) OR ta."tagId" IN (SELECT tc."id_descendant" FROM "tag_closure" tc WHERE tc."id_ancestor" IN (${idParams}))))`;
     }
 
     case "person_unnamed":

@@ -8,7 +8,7 @@ import { IAlbum } from '@/types/album';
 import { formatDate } from '@/helpers/date.helper';
 import { Checkbox } from '@/components/ui/checkbox';
 import { differenceInDays } from 'date-fns';
-import { Calendar, Camera } from 'lucide-react';
+import { Calendar, Camera, ImageOff } from 'lucide-react';
 
 interface IAlbumThumbnailProps {
   album: IAlbum;
@@ -18,6 +18,9 @@ interface IAlbumThumbnailProps {
 
 export default function AlbumThumbnail({ album, onSelect, selected }: IAlbumThumbnailProps) {
   const numberOfDays = useMemo(() => {
+    if (!album.firstPhotoDate || !album.lastPhotoDate) {
+      return null;
+    }
     return differenceInDays(album.lastPhotoDate, album.firstPhotoDate);
   }, [album.firstPhotoDate, album.lastPhotoDate]);
 
@@ -29,16 +32,27 @@ export default function AlbumThumbnail({ album, onSelect, selected }: IAlbumThum
   return (
     <div className="border rounded-lg overflow-hidden shadow-lg relative group">
       <label className="block relative ">
-        <LazyImage
-          src={ASSET_THUMBNAIL_PATH(album.albumThumbnailAssetId)}
-          alt={album.albumName}
-          title={album.albumName}
-          style={{
-            width: '100%',
-            height: '200px',
-            objectFit: 'cover',
-          }}
-        />
+        {album.albumThumbnailAssetId ? (
+          <LazyImage
+            src={ASSET_THUMBNAIL_PATH(album.albumThumbnailAssetId)}
+            alt={album.albumName}
+            title={album.albumName}
+            style={{
+              width: '100%',
+              height: '200px',
+              objectFit: 'cover',
+            }}
+          />
+        ) : (
+          <div
+            className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-400"
+            style={{ width: '100%', height: '200px' }}
+            title={album.albumName}
+          >
+            <ImageOff size={32} />
+            <span className="text-xs">No photos</span>
+          </div>
+        )}
         <div className="absolute bottom-0 w-full bg-gray-800/70 text-white text-center text-xs font-bold py-1 group-hover:hidden">
           {album.firstPhotoDate ? formatDate(album.firstPhotoDate?.toString(), 'MMM d, yyyy') : ''} - {album.lastPhotoDate ? formatDate(album.lastPhotoDate?.toString(), 'MMM d, yyyy') : ''}
         </div>
@@ -54,9 +68,11 @@ export default function AlbumThumbnail({ album, onSelect, selected }: IAlbumThum
           <Camera size={12} />
           {humanizeNumber(album.assetCount)}
         </div>
-        <p className="bg-gray-800 flex items-center gap-1 text-white text-xs py-1 px-2 rounded">
-        {numberOfDays === 0 ? '1 day' : `${numberOfDays.toLocaleString() } days`} <Calendar size={12} />
-      </p>
+        {numberOfDays !== null && (
+          <p className="bg-gray-800 flex items-center gap-1 text-white text-xs py-1 px-2 rounded">
+          {numberOfDays === 0 ? '1 day' : `${numberOfDays.toLocaleString() } days`} <Calendar size={12} />
+        </p>
+        )}
       </div>
       <div className={`p-4 ${selected ? 'bg-blue-500' : ''}`}>
         <Link href={`/albums/${album.id}`}>

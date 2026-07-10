@@ -118,3 +118,91 @@
 .leaflet-control-container {
   z-index: 3 !important;
 }
+
+/* rc-mentions styles for FindInput */
+.rc-mentions {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  font-size: 16px;
+  font-weight: normal;
+  background: transparent;
+  border: none;
+  outline: none;
+  position: relative;
+  display: block;
+}
+
+.rc-mentions > textarea {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 10px 0;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  font-weight: normal;
+  font-family: inherit;
+  background: transparent;
+  color: hsl(var(--foreground));
+  resize: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.rc-mentions-measure {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  color: transparent !important;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.rc-mentions > textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.rc-mentions-dropdown {
+  position: absolute;
+  z-index: 50;
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 14px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  animation: mentions-dropdown-in 0.15s ease-out;
+}
+
+@keyframes mentions-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rc-mentions-dropdown-menu {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.rc-mentions-dropdown-menu-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.1s ease;
+}
+
+.rc-mentions-dropdown-menu-item-active {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}

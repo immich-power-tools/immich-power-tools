@@ -19,10 +19,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Test asset upload permission by calling a no-op endpoint
   try {
-    const response = await fetch(`${ENV.IMMICH_URL}/api/assets/exist`, {
+    const response = await fetch(`${ENV.IMMICH_URL}/api/assets/bulk-upload-check`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ deviceAssetIds: ["permission-check"], deviceId: "immich-power-tools-check" }),
+      body: JSON.stringify({
+        assets: [{ id: "permission-check", checksum: "0000000000000000000000000000000000000000" }],
+      }),
     });
     result.canUpload = response.ok;
   } catch {

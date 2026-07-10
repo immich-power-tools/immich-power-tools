@@ -7,6 +7,7 @@ import { albums } from "@/schema/albums.schema";
 import { count, desc, eq, and, isNotNull } from "drizzle-orm";
 import { assets } from "@/schema/assets.schema";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
+import { albumUsers } from "@/schema/albumUsers.schema";
 import { assetFaces, person } from "@/schema";
 
 export default async function handler(
@@ -26,11 +27,12 @@ export default async function handler(
     numberOfPhotos: count(assets.id), 
   })
     .from(albums)
+    .innerJoin(albumUsers, and(eq(albums.id, albumUsers.albumId), eq(albumUsers.role, "owner")))
     .leftJoin(albumsAssetsAssets, eq(albums.id, albumsAssetsAssets.albumId))
     .leftJoin(assets, eq(albumsAssetsAssets.assetId, assets.id))
     .leftJoin(assetFaces, eq(assets.id, assetFaces.assetId))
     .leftJoin(person, and(eq(assetFaces.personId, person.id), eq(person.isHidden, false)))
-    .where(and(eq(albums.ownerId, currentUser.id), eq(albums.id, id), isNotNull(person.id)))
+    .where(and(eq(albumUsers.userId, currentUser.id), eq(albums.id, id), isNotNull(person.id)))
     .orderBy(desc(person.name))
     .groupBy(person.id);  
 

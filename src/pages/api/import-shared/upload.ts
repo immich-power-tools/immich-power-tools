@@ -117,16 +117,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const modifiedAt = asset.localDateTime ?? asset.fileCreatedAt ?? createdAt;
 
     const formData = new FormData();
-    formData.set("deviceAssetId", `shared-${params.assetId}`);
-    formData.set("deviceId", "immich-power-tools");
     formData.set("fileCreatedAt", createdAt);
     formData.set("fileModifiedAt", modifiedAt);
     formData.set("fileType", asset.type ?? "IMAGE");
-    formData.set("duration", asset.duration ?? "0:00:00.000000");
     formData.set("assetData", assetBlob, fileName);
 
     if (asset.isArchived) {
-      formData.set("isArchived", asset.isArchived.toString());
+      formData.set("visibility", "archive");
     }
     if (asset.isFavorite) {
       formData.set("isFavorite", asset.isFavorite.toString());

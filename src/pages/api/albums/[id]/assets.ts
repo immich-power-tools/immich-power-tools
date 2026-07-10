@@ -29,7 +29,6 @@ export default async function handler(
   }
   const dbAssets = await db.selectDistinctOn([assets.id], {
     id: assets.id,
-    deviceId: assets.deviceId,
     type: assets.type,
     originalPath: assets.originalPath,
     isFavorite: assets.isFavorite,

@@ -51,6 +51,7 @@ export default function FindPage() {
   const { toast } = useToast(); // Initialize toast
   const { aiEnabled } = useConfig();
   const [query, setQuery] = useState('');
+  const [searchedQuery, setSearchedQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<IFindFilters>({});
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +93,9 @@ export default function FindPage() {
   }, [filters]);
 
   const handleSearch = (query: string) => {
+    if (!query.trim()) return;
     setQuery(query);
+    setSearchedQuery(query);
     setLoading(true);
     setError(null); // Clear previous errors
     findAssets(query)
@@ -193,7 +196,7 @@ export default function FindPage() {
         </div>
       )
     }
-    else if (query.length === 0) {
+    else if (searchedQuery.length === 0) {
       return (
         <div className="flex justify-center flex-col gap-2 items-center h-full">
           <Search className='w-10 h-10 text-muted-foreground' />
@@ -209,7 +212,10 @@ export default function FindPage() {
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => handleSearch(suggestion.query)}
+                onClick={() => {
+                  setQuery(suggestion.query);
+                  handleSearch(suggestion.query);
+                }}
               >
                 {suggestion.label}
               </Button>
@@ -279,6 +285,7 @@ export default function FindPage() {
               value={query}
               onChange={setQuery}
               onSearch={handleSearch} 
+              loading={loading}
             />
           </div>
           {/* renderContent now includes the Provider */}

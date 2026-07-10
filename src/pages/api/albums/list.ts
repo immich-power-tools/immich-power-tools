@@ -7,6 +7,7 @@ import { albums } from "@/schema/albums.schema";
 import { count, desc, eq, min, max, sql, and, sum, isNotNull } from "drizzle-orm";
 import { assets } from "@/schema/assets.schema";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
+import { albumUsers } from "@/schema/albumUsers.schema";
 import { assetFaces, exif, person } from "@/schema";
 import { IAlbum } from "@/types/album";
 
@@ -63,12 +64,13 @@ export default async function handler(
     size: sum(exif.fileSizeInByte),
     order: albums.order,
     isActivityEnabled: albums.isActivityEnabled,
-    ownerId: albums.ownerId,
+    ownerId: albumUsers.userId,
     description: albums.description,
     lastModifiedAssetTimestamp: max(exif.dateTimeOriginal),
     faceCount: count(sql<string>`DISTINCT ${assetFaces.personId}`), // Ensure unique personId
   })
     .from(albums)
+    .innerJoin(albumUsers, and(eq(albums.id, albumUsers.albumId), eq(albumUsers.role, "owner")))
     .leftJoin(albumsAssetsAssets, eq(albums.id, albumsAssetsAssets.albumId))
     .leftJoin(assets, and(
       eq(albumsAssetsAssets.assetId, assets.id),
@@ -78,8 +80,8 @@ export default async function handler(
     .leftJoin(exif, eq(assets.id, exif.assetId))
     .leftJoin(assetFaces, eq(assets.id, assetFaces.assetId))
     .leftJoin(person, and(eq(assetFaces.personId, person.id), eq(person.isHidden, false)))
-    .where(eq(albums.ownerId, currentUser.id))
-    .groupBy(albums.id)
+    .where(eq(albumUsers.userId, currentUser.id))
+    .groupBy(albums.id, albumUsers.userId)
     .orderBy(desc(albums.createdAt));
   
   const sortedAlbums = sortAlbums(dbAlbums as IAlbum[], sortBy, sortOrder);

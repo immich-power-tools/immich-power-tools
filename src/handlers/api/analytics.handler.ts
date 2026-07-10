@@ -16,8 +16,15 @@ export const getLivePhotoStatistics = async () => {
   return API.get(LIVE_PHOTO_STATISTICS);
 }
 
-export const getHeatMapData = async () => {
-  return API.get(HEATMAP_DATA);
+export interface IHeatMapResponse {
+  data: Array<{ date: string; count: number }>;
+  year: number | null;
+  availableYears: number[];
+}
+
+export const getHeatMapData = async (year?: number): Promise<IHeatMapResponse> => {
+  const params = year ? { year: String(year) } : {};
+  return API.get(HEATMAP_DATA, params);
 }
 
 export const getPeopleNamesStatistics = async () => {

@@ -1,16 +1,14 @@
-import { pgTable, uuid, varchar, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
 
 export const assets = pgTable('asset', {
   id: uuid('id').defaultRandom().primaryKey().notNull(),
-  deviceAssetId: varchar('deviceAssetId').notNull(),
   ownerId: uuid('ownerId').notNull(),
-  deviceId: varchar('deviceId').notNull(),
   type: varchar('type').notNull(),
   originalPath: varchar('originalPath').notNull(),
   fileCreatedAt: timestamp('fileCreatedAt', { withTimezone: true }).notNull(),
   fileModifiedAt: timestamp('fileModifiedAt', { withTimezone: true }).notNull(),
   isFavorite: boolean('isFavorite').default(false).notNull(),
-  duration: varchar('duration'),
+  duration: integer('duration'),
   // checksum: bytea('checksum').notNull(),
   visibility: varchar('visibility').default('timeline').notNull(),
   livePhotoVideoId: uuid('livePhotoVideoId').references((): any => assets.id, { onDelete: 'set null', onUpdate: 'cascade' }),

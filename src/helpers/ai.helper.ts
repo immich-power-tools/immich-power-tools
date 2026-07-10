@@ -67,10 +67,11 @@ const getOpenAICompatibleModel = () => {
 };
 
 export const parseFindQuery = async (query: string): Promise<FindQuery> => {
+  const today = new Date().toISOString().split("T")[0];
   const prompt = [
     `Parse the following query and return extracted filters as JSON: ${query}.`,
     "Do not include any information that is not intentionally provided in the query.",
-    `Today's date is ${new Date().toISOString().split("T")[0]}.`,
+    `Today's date is ${today}. Use it ONLY to resolve relative expressions like "last week" or "yesterday" that APPEAR IN THE QUERY. If no date-related word is in the query, DO NOT return takenAfter or takenBefore.`,
     "Dates must be in YYYY-MM-DD format.",
     "Return ONLY valid JSON object with keys: query, personIds, city, country, state, size, model, takenAfter, takenBefore, type.",
     "Do not use null values. Omit a key when it is not present in the query.",
@@ -81,10 +82,9 @@ export const parseFindQuery = async (query: string): Promise<FindQuery> => {
     model: getOpenAICompatibleModel(),
     prompt,
     output: Output.object({
-      name:"json",
+      name: "json",
       schema: responseSchema,
     }),
-    
   });
 
   const parsedResponse = JSON.parse(text) as FindQuery;
@@ -94,9 +94,18 @@ export const parseFindQuery = async (query: string): Promise<FindQuery> => {
       delete parsedResponse.type;
     }
   }
-  const cleanedResponse = {
-    ...parsedResponse
-  };
 
-  return removeNullOrUndefinedProperties(cleanedResponse) as any as FindQuery;
+  // Guardrail against a common LLM failure mode: small-to-medium models
+  // (qwen2.5:7b, Gemini flash, etc.) often echo the prompt's "today" date as
+  // `takenAfter` even when the query has no date. A date in the future can
+  // never match a photo, so drop any takenAfter/takenBefore that is today or
+  // later — this keeps the filter purely corrective without guessing intent.
+  if (parsedResponse.takenAfter && parsedResponse.takenAfter >= today) {
+    delete parsedResponse.takenAfter;
+  }
+  if (parsedResponse.takenBefore && parsedResponse.takenBefore > today) {
+    delete parsedResponse.takenBefore;
+  }
+
+  return removeNullOrUndefinedProperties(parsedResponse) as any as FindQuery;
 };

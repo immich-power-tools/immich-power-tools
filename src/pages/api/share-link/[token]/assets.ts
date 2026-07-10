@@ -56,7 +56,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const dbAssets = await db.select({
       id: assets.id,
-      deviceId: assets.deviceId,
       type: assets.type,
       originalPath: assets.originalPath,
       isFavorite: assets.isFavorite,
@@ -92,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return {
         ...asset,
         localDateTime: new Date(asset.localDateTime),
-        duration: asset.duration ? parseInt(asset.duration) : 0,
+        duration: asset.duration ?? 0,
         exifImageWidth: (isFlipped(asset.orientation) ? asset.exifImageHeight : asset.exifImageWidth) ?? 0,
         exifImageHeight: (isFlipped(asset.orientation) ? asset.exifImageWidth : asset.exifImageHeight) ?? 0,
         dateTimeOriginal: new Date(asset.dateTimeOriginal || new Date()).toISOString(),

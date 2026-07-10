@@ -39,19 +39,11 @@ export default async function handler(
   }
 
   
-  const durationExpr = sql<number>`
-  (
-    CAST(SUBSTRING(${assets.duration}, 1, 2) AS DECIMAL) * 3600 +
-    CAST(SUBSTRING(${assets.duration}, 4, 2) AS DECIMAL) * 60 +
-    CAST(SUBSTRING(${assets.duration}, 7, 2) AS DECIMAL) +
-    CAST(SUBSTRING(${assets.duration}, 10, 3) AS DECIMAL) / 1000
-  )
-`;
+  const durationExpr = sql<number>`(${assets.duration}::decimal / 1000)`;
 
 const dbAssets = await db
   .selectDistinctOn([assets.id], {
     id: assets.id,
-    deviceId: assets.deviceId,
     type: assets.type,
     originalPath: assets.originalPath,
     isFavorite: assets.isFavorite,

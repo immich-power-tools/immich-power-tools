@@ -9,6 +9,7 @@ const actionIcons: Record<string, any> = {
   unfavorite: HeartOff,
   archive: Archive,
   tag: Tag,
+  remove_tag: Tag,
 };
 
 const actionLabels: Record<string, string> = {
@@ -19,6 +20,7 @@ const actionLabels: Record<string, string> = {
   unfavorite: "Unfavorite",
   archive: "Archive",
   tag: "Add Tag",
+  remove_tag: "Remove Tag",
 };
 
 export default function ActionNode({ data, selected }: NodeProps) {
@@ -42,7 +44,7 @@ export default function ActionNode({ data, selected }: NodeProps) {
           {(subType === "add_to_album" || subType === "remove_from_album") && config.albumName && (
             <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{config.albumName}</p>
           )}
-          {subType === "tag" && config.tagName && (
+          {(subType === "tag" || subType === "remove_tag") && config.tagName && (
             <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{config.tagName}</p>
           )}
         </div>

@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import API from "@/lib/api";
 import { useConfig } from "@/contexts/ConfigContext";
 import Link from "next/link";
+import { WORKFLOW_PERMISSIONS } from "@/config/permissions";
 
 function ConnectionStatus({ label, url, icon: Icon }: { label: string; url: string; icon: any }) {
   return (
@@ -50,6 +51,9 @@ export default function SettingsPage() {
   const [showImportApiKey, setShowImportApiKey] = useState(false);
   const [importApiKeySaved, setImportApiKeySaved] = useState(false);
   const [generatingImportKey, setGeneratingImportKey] = useState(false);
+  const [importValidationResult, setImportValidationResult] = useState<{
+    valid: boolean; error: string | null; permissions: string[]; missing: string[];
+  } | null>(null);
 
   const fetchWorkflowApiKey = async () => {
     try {
@@ -71,14 +75,45 @@ export default function SettingsPage() {
     }
   };
 
+  const IMPORT_REQUIRED_PERMISSIONS = ["asset.read", "asset.upload", "album.read", "album.create", "album.update", "tag.create", "tag.asset"];
+
   const saveImportApiKey = async () => {
+    if (!importApiKey.trim()) {
+      setImportApiKeyLoading(true);
+      try {
+        await API.put("/api/settings/kv/import_api_key", { value: "" });
+        setImportApiKeySaved(false);
+        setImportValidationResult(null);
+        toast.success("Import API key cleared");
+      } catch {
+        toast.error("Failed to clear import API key");
+      }
+      setImportApiKeyLoading(false);
+      return;
+    }
+
     setImportApiKeyLoading(true);
+    setImportValidationResult(null);
+    toast("Validating API key...");
+
     try {
+      const result = await API.post("/api/settings/validate-api-key", {
+        apiKey: importApiKey,
+        requiredPermissions: IMPORT_REQUIRED_PERMISSIONS,
+      });
+      setImportValidationResult(result);
+
+      if (!result.valid) {
+        toast.error(result.error || "API key validation failed");
+        setImportApiKeyLoading(false);
+        return;
+      }
+
       await API.put("/api/settings/kv/import_api_key", { value: importApiKey.trim() });
-      setImportApiKeySaved(!!importApiKey.trim());
-      toast.success(importApiKey.trim() ? "Import API key saved" : "Import API key cleared");
+      setImportApiKeySaved(true);
+      toast.success("API key validated and saved");
     } catch {
-      toast.error("Failed to save import API key");
+      toast.error("Failed to validate API key");
     }
     setImportApiKeyLoading(false);
   };
@@ -235,8 +270,8 @@ export default function SettingsPage() {
             )}
             {!validationResult && (
               <div className="flex flex-wrap gap-1">
-                {["asset.read", "asset.update", "album.create", "album.update", "tag.create"].map((p) => (
-                  <Badge key={p} variant="outline" className="text-[10px] h-5 font-mono font-normal">{p}</Badge>
+                {WORKFLOW_PERMISSIONS.map((p) => (
+                  <Badge key={p.name} variant="outline" className="text-[10px] h-5 font-mono font-normal">{p.name}</Badge>
                 ))}
               </div>
             )}
@@ -294,18 +329,46 @@ export default function SettingsPage() {
                 {importApiKeyLoading ? "Saving..." : "Save"}
               </Button>
             </div>
-            <div className="flex flex-wrap gap-1">
-              {["asset.read", "asset.upload", "album.read", "album.create", "album.update", "tag.create"].map((p) => (
-                <Badge key={p} variant="outline" className="text-[10px] h-5 font-mono font-normal">{p}</Badge>
-              ))}
-            </div>
+            {importValidationResult && (
+              <div className={`rounded-md p-2.5 text-xs ${importValidationResult.valid ? "bg-green-500/10 border border-green-500/20" : "bg-destructive/10 border border-destructive/20"}`}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  {importValidationResult.valid ? (
+                    <><CheckCircle className="h-3.5 w-3.5 text-green-500" /><span className="font-medium text-green-600 dark:text-green-400">All permissions verified</span></>
+                  ) : (
+                    <><XCircle className="h-3.5 w-3.5 text-destructive" /><span className="font-medium text-destructive">{importValidationResult.error}</span></>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {IMPORT_REQUIRED_PERMISSIONS.map((p) => {
+                    const granted = importValidationResult.permissions.includes(p);
+                    const missing = importValidationResult.missing.includes(p);
+                    return (
+                      <Badge
+                        key={p}
+                        variant="outline"
+                        className={`text-[10px] h-5 font-mono font-normal ${granted ? "border-green-500/40 text-green-600 dark:text-green-400" : missing ? "border-destructive/40 text-destructive" : ""}`}
+                      >
+                        {granted ? "✓" : "✗"} {p}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {!importValidationResult && (
+              <div className="flex flex-wrap gap-1">
+                {IMPORT_REQUIRED_PERMISSIONS.map((p) => (
+                  <Badge key={p} variant="outline" className="text-[10px] h-5 font-mono font-normal">{p}</Badge>
+                ))}
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <Button
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
                 onClick={handleGenerateImportKey}
-                disabled={generatingImportKey}
+                disabled={generatingImportKey || importApiKeySaved}
               >
                 <Wand2 className="h-3 w-3 mr-1" />
                 {generatingImportKey ? "Generating..." : "Generate automatically"}

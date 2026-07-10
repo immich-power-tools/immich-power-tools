@@ -7,6 +7,9 @@ export const pluralize = (number: number, word: string, pluralWord: string) => {
 }
 
 export const humanizeBytes = (bytes: number) => {
+  if (!bytes || isNaN(bytes)) {
+    return `0 bytes`
+  }
   if (bytes < 1024) {
     return `${bytes} bytes`
   }
@@ -19,22 +22,23 @@ export const humanizeBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-export const humanizeDuration = (duration: string) => {
-  if (!duration) {
+export const humanizeDuration = (duration: string | number | null | undefined) => {
+  if (duration === null || duration === undefined || duration === '') {
     return null;
   }
-  // Example input : 00:00:04.350
-  const [hours, minutes, seconds] = duration.split(':').map(Number);
-  const totalSeconds = Math.round(hours * 3600 + minutes * 60 + seconds);
+  const ms = Number(duration);
+  if (isNaN(ms)) {
+    return null;
+  }
+  const totalSeconds = Math.round(ms / 1000);
 
   if (totalSeconds < 60) {
     return `${totalSeconds}s`;
   }
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   if (totalSeconds < 3600) {
-    // Show only minutes
-    return `${Math.round(minutes)}m`;
+    return `${minutes}m`;
   }
-
-  
-  return `${Math.round(hours)}h ${Math.round(minutes)}m`;
+  return `${hours}h ${minutes}m`;
 }

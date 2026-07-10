@@ -2,7 +2,6 @@ import { pgTable, uuid, varchar, timestamp, boolean, text } from 'drizzle-orm/pg
 
 export const albums = pgTable('album', {
     id: uuid('id').defaultRandom().primaryKey().notNull(),
-    ownerId: uuid('ownerId').notNull(),
     albumName: varchar('albumName').notNull().default('Untitled Album'),
     createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow().notNull(),
     albumThumbnailAssetId: uuid('albumThumbnailAssetId'),

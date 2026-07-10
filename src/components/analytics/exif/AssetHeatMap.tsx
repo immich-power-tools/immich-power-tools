@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getHeatMapData } from "@/handlers/api/analytics.handler";
 import { useConfig } from "@/contexts/ConfigContext";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type HeatMapEntry = {
   date: string;
   count: number;
 };
+
+const ROLLING = "rolling" as const;
 
 const COLOR_SCALE = [
   "bg-zinc-100 dark:bg-zinc-800/60",
@@ -25,29 +28,39 @@ export default function AssetHeatMap() {
   const [heatMapData, setHeatMapData] = useState<HeatMapEntry[][]>([]);
   const [loading, setLoading] = useState(false);
   const [weeksPerMonth, setWeeksPerMonth] = useState<number[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [selection, setSelection] = useState<typeof ROLLING | number>(ROLLING);
 
-  const fetchHeatMapData = async () => {
+  const fetchHeatMapData = async (sel: typeof ROLLING | number) => {
     setLoading(true);
     try {
-      const data = await getHeatMapData();
-      setHeatMapData(formatHeatMapData(data));
+      const resp = await getHeatMapData(sel === ROLLING ? undefined : sel);
+      setAvailableYears(resp.availableYears ?? []);
+      setHeatMapData(formatHeatMapData(resp.data));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHeatMapData();
-  }, []);
+    fetchHeatMapData(selection);
+  }, [selection]);
 
-  const currentDate = new Date();
-  const months: string[] = [];
-
-  for (let i = 0; i < 12; i++) {
-    months.push(currentDate.toLocaleString("default", { month: "short" }));
-    currentDate.setMonth(currentDate.getMonth() - 1);
-  }
-  months.reverse();
+  const months = useMemo(() => {
+    if (selection === ROLLING) {
+      const cursor = new Date();
+      const out: string[] = [];
+      for (let i = 0; i < 12; i++) {
+        out.push(cursor.toLocaleString("default", { month: "short" }));
+        cursor.setMonth(cursor.getMonth() - 1);
+      }
+      return out.reverse();
+    }
+    // Calendar year: Jan-Dec in order.
+    return Array.from({ length: 12 }, (_, i) =>
+      new Date(selection, i, 1).toLocaleString("default", { month: "short" })
+    );
+  }, [selection]);
 
   const flattenedData = heatMapData.flat();
   const minCount = Math.min(...flattenedData.map((entry) => entry.count));
@@ -106,6 +119,24 @@ export default function AssetHeatMap() {
 
   return (
     <div className="w-full">
+      <div className="flex items-center justify-end mb-2">
+        <Select
+          value={selection === ROLLING ? ROLLING : String(selection)}
+          onValueChange={(v) => setSelection(v === ROLLING ? ROLLING : Number(v))}
+        >
+          <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ROLLING}>Last 12 months</SelectItem>
+            {availableYears.map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="overflow-x-auto">
         <table className="table-auto border-separate border-spacing-[3px]">
           <thead>

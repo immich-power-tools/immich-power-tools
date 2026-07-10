@@ -6,6 +6,8 @@ import {
   HeadersRecord,
   ensurePowerToolsTag,
   tagAssetWithPowerTools,
+  fetchSourceAssetChecksum,
+  findExistingAssetIds,
 } from "./helpers";
 
 interface ISharedAssetPayload {
@@ -43,10 +45,8 @@ interface DownloadedAssetPayload {
   contentType: string | null;
 }
 
-const DEVICE_ID = "immich-power-tools";
 const ALLOWED_ASSET_TYPES = new Set(["IMAGE", "VIDEO"]);
 const CONCURRENT_TRANSFERS = 4;
-const makeDeviceAssetId = (assetId: string) => `shared-${assetId}`;
 
 const respondWithError = (res: NextApiResponse, status: number, message: string) => {
   return res.status(status).json({ error: message });
@@ -316,16 +316,13 @@ const uploadAssetBuffer = async (
   const modifiedAt = asset.localDateTime ?? asset.fileCreatedAt ?? createdAt;
 
   const formData = new FormData();
-  formData.set("deviceAssetId", makeDeviceAssetId(asset.id));
-  formData.set("deviceId", DEVICE_ID);
   formData.set("fileCreatedAt", createdAt);
   formData.set("fileModifiedAt", modifiedAt);
   formData.set("fileType", fileType);
-  formData.set("duration", asset.duration ?? "0:00:00.000000");
   formData.set("assetData", blob, resolvedFileName);
 
   if (asset.isArchived) {
-    formData.set("isArchived", String(asset.isArchived));
+    formData.set("visibility", "archive");
   }
   if (asset.isFavorite) {
     formData.set("isFavorite", String(asset.isFavorite));
@@ -390,46 +387,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "Content-Type": "application/json",
   };
 
-  const deviceAssetIds: string[] = [];
-  const deviceAssetIdLookup = new Map<string, string>();
+  const checkItems: { id: string; checksum: string }[] = [];
   for (const asset of uploadableAssets) {
-    const deviceAssetId = makeDeviceAssetId(asset.id);
-    deviceAssetIds.push(deviceAssetId);
-    deviceAssetIdLookup.set(deviceAssetId.toLowerCase(), asset.id);
+    const checksum = await fetchSourceAssetChecksum(origin, asset.id, key);
+    if (checksum) checkItems.push({ id: asset.id, checksum });
   }
-
-  const existingAssetIds = new Set<string>();
-  if (deviceAssetIds.length > 0) {
-    try {
-      const checkResponse = await fetch(`${ENV.IMMICH_URL}/api/assets/exist`, {
-        method: "POST",
-        headers: jsonHeadersWithContentType,
-        body: JSON.stringify({
-          deviceAssetIds,
-          deviceId: DEVICE_ID,
-        }),
-      });
-
-      if (checkResponse.ok) {
-        const existPayload = await checkResponse.json().catch(() => ({}));
-        const existingIds: string[] = existPayload?.existingIds ?? [];
-        for (const deviceAssetId of existingIds) {
-          if (typeof deviceAssetId !== "string") {
-            continue;
-          }
-          const normalizedId = deviceAssetId.toLowerCase();
-          const matchedAssetId = deviceAssetIdLookup.get(normalizedId);
-          if (matchedAssetId) {
-            existingAssetIds.add(matchedAssetId);
-          }
-        }
-      } else {
-        console.warn(`Failed to check existing assets before import (status ${checkResponse.status})`);
-      }
-    } catch (error) {
-      console.warn("Unable to check existing assets before import", error);
-    }
-  }
+  const existingAssetIds = await findExistingAssetIds(jsonHeadersWithContentType, checkItems);
 
   const assetsToImport = uploadableAssets.filter((asset) => !existingAssetIds.has(asset.id));
   const skippedAssetIds = uploadableAssets

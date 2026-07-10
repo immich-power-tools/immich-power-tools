@@ -39,14 +39,7 @@ import Loader from "@/components/ui/loader";
 import API from "@/lib/api";
 import ApiKeyGate from "@/components/shared/ApiKeyGate";
 
-const WORKFLOW_PERMISSIONS = [
-  { name: "asset.read", description: "Query and filter assets" },
-  { name: "asset.update", description: "Favorite, archive, update metadata" },
-  { name: "album.read", description: "Read album data" },
-  { name: "album.create", description: "Create new albums" },
-  { name: "album.update", description: "Add/remove assets from albums" },
-  { name: "tag.create", description: "Create and assign tags" },
-];
+import { WORKFLOW_PERMISSIONS } from "@/config/permissions";
 
 function generateId() {
   return Math.random().toString(36).substring(2, 15);

@@ -5,17 +5,10 @@ import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { getUserHeaders } from "@/helpers/user.helper";
 import { and, eq } from "drizzle-orm";
 import { NextApiRequest, NextApiResponse } from "next";
+import { WORKFLOW_PERMISSIONS, getPermissionNames } from "@/config/permissions";
 
 const WORKFLOW_API_KEY_SETTING = "workflow_api_key";
 const WORKFLOW_KEY_NAME = "Power Tools Workflow Key";
-const WORKFLOW_PERMISSIONS = [
-  "asset.read",
-  "asset.update",
-  "album.read",
-  "album.create",
-  "album.update",
-  "tag.create",
-];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method not allowed" });
@@ -27,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const immichRes = await fetch(`${ENV.IMMICH_URL}/api/api-keys`, {
     method: "POST",
     headers: getUserHeaders(currentUser, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ name: WORKFLOW_KEY_NAME, permissions: WORKFLOW_PERMISSIONS }),
+    body: JSON.stringify({ name: WORKFLOW_KEY_NAME, permissions: getPermissionNames(WORKFLOW_PERMISSIONS) }),
   });
 
   if (!immichRes.ok) {

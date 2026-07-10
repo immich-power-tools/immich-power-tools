@@ -3,6 +3,7 @@ import { ICondition, ConditionType } from "@/types/workflow";
 const conditionTypeLabels: Record<ConditionType, string> = {
   person: "Person",
   person_unnamed: "Unnamed People",
+  tag: "Tag",
   city: "City",
   state: "State",
   country: "Country",
@@ -16,8 +17,14 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   asset_type: "Asset Type",
   iso_range: "ISO Range",
   focal_length: "Focal Length",
+  resolution: "Resolution",
   rating: "Rating",
   is_favorited: "Favorited",
+  file_size: "File Size",
+  filename: "File Name / Path",
+  file_extension: "Extension",
+  face_count: "Faces",
+  time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
@@ -45,6 +52,13 @@ export function formatConditionSummary(c: ICondition): string {
     }
     case "person_unnamed":
       return label;
+    case "tag": {
+      const values: string[] = c.tagValues || [];
+      const match = matchLabels[c.match] || c.match || "any of";
+      if (values.length === 0) return `${label}: (none selected)`;
+      const valueStr = values.length <= 2 ? values.join(", ") : `${values[0]}, ${values[1]} +${values.length - 2}`;
+      return `${label} ${match}: ${valueStr}`;
+    }
     case "city":
     case "state":
     case "country": {
@@ -95,8 +109,44 @@ export function formatConditionSummary(c: ICondition): string {
       if (c.max != null) return `${label}: ≤${c.max}`;
       return label;
     }
+    case "resolution": {
+      const metricNames: Record<string, string> = { megapixels: "MP", short_edge: "short edge", long_edge: "long edge" };
+      const metric = c.metric || "megapixels";
+      const unit = metric === "megapixels" ? "MP" : "px";
+      const name = metric === "megapixels" ? "" : `${metricNames[metric]} `;
+      if (c.min != null && c.max != null) return `${label}: ${name}${c.min}–${c.max}${unit}`;
+      if (c.min != null) return `${label}: ${name}≥${c.min}${unit}`;
+      if (c.max != null) return `${label}: ${name}≤${c.max}${unit}`;
+      return label;
+    }
     case "is_favorited":
       return c.value === false ? "Not Favorited" : "Favorited";
+    case "file_size": {
+      if (c.min != null && c.max != null) return `${label}: ${c.min}–${c.max}MB`;
+      if (c.min != null) return `${label}: ≥${c.min}MB`;
+      if (c.max != null) return `${label}: ≤${c.max}MB`;
+      return label;
+    }
+    case "filename": {
+      if (!c.text) return label;
+      const field = c.field === "path" ? "Path" : "Name";
+      const matchNames: Record<string, string> = { contains: "contains", not_contains: "doesn't contain", starts_with: "starts with", ends_with: "ends with" };
+      return `${field} ${matchNames[c.match] || "contains"}: ${c.text}`;
+    }
+    case "file_extension": {
+      if (!c.extensions) return label;
+      return `${label} ${c.match === "not_in" ? "none of" : "any of"}: ${c.extensions}`;
+    }
+    case "face_count": {
+      if (c.min != null && c.max != null) return c.min === c.max ? `${label}: ${c.min}` : `${label}: ${c.min}–${c.max}`;
+      if (c.min != null) return `${label}: ≥${c.min}`;
+      if (c.max != null) return `${label}: ≤${c.max}`;
+      return label;
+    }
+    case "time_of_day": {
+      if (c.fromHour == null || c.toHour == null) return label;
+      return `${label}: ${c.fromHour}:00–${c.toHour}:59`;
+    }
     case "not_in_album":
       return label;
     case "not_in_specific_album":

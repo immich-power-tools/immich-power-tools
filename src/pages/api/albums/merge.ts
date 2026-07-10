@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import API from "@/lib/api";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
 import { albums } from "@/schema/albums.schema";
+import { albumUsers } from "@/schema/albumUsers.schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -35,11 +36,16 @@ export default async function handler(
       });
   }
 
+  const ownedAlbumIds = db
+    .select({ albumId: albumUsers.albumId })
+    .from(albumUsers)
+    .where(and(eq(albumUsers.userId, currentUser.id), eq(albumUsers.role, "owner")));
+
   const primaryAlbum = await db
     .select()
     .from(albums)
     .where(
-      and(eq(albums.id, primaryAlbumId), eq(albums.ownerId, currentUser.id))
+      and(eq(albums.id, primaryAlbumId), inArray(albums.id, ownedAlbumIds))
     )
     .limit(1);
 
@@ -51,7 +57,7 @@ export default async function handler(
   const secondaryAlbums = await db
     .select()
     .from(albums)
-    .where(and(inArray(albums.id, secondaryAlbumIds), eq(albums.ownerId, currentUser.id)));
+    .where(and(inArray(albums.id, secondaryAlbumIds), inArray(albums.id, ownedAlbumIds)));
 
   
   if (secondaryAlbums.length === 0) {

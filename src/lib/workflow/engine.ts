@@ -3,7 +3,7 @@ import { db } from "@/config/db";
 import { workflows, workflowNodes, workflowEdges, workflowRuns, workflowProcessedAssets } from "@/db/schema/workflows.schema";
 import { assets } from "@/schema/assets.schema";
 import { exif } from "@/schema";
-import { eq, and, desc, gte, isNull, inArray, sql, ne } from "drizzle-orm";
+import { eq, and, desc, gt, gte, isNull, inArray, sql, ne, SQL } from "drizzle-orm";
 import { buildConditions } from "./conditionBuilder";
 import { executeAction } from "./actionExecutor";
 import { IUser } from "@/types/user";
@@ -17,6 +17,53 @@ function log(runId: string, ...args: any[]) {
 
 function logError(runId: string, ...args: any[]) {
   console.error(`${PREFIX} [run:${runId.slice(0, 8)}]`, ...args);
+}
+
+const QUERY_BATCH_SIZE = 5000;
+
+// Keyset-paginate an asset query so large libraries aren't silently truncated.
+// fetchBatch must ORDER BY assets.id and apply gt(assets.id, afterId) when given.
+async function fetchAllBatches<T extends { id: string }>(
+  fetchBatch: (afterId: string | null, limit: number) => Promise<T[]>,
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const batch = await fetchBatch(cursor, QUERY_BATCH_SIZE);
+    all.push(...batch);
+    if (batch.length < QUERY_BATCH_SIZE) break;
+    cursor = batch[batch.length - 1].id;
+  }
+  return all;
+}
+
+// Evaluate condition clauses against an incoming asset set (chunked to keep
+// IN-lists bounded), or against the whole library when scopeIds is null.
+async function queryConditionMatches(whereClauses: SQL[], scopeIds: string[] | null): Promise<string[]> {
+  if (scopeIds !== null) {
+    const matched: string[] = [];
+    for (let i = 0; i < scopeIds.length; i += QUERY_BATCH_SIZE) {
+      const chunk = scopeIds.slice(i, i + QUERY_BATCH_SIZE);
+      const rows = await db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .leftJoin(exif, eq(assets.id, exif.assetId))
+        .where(and(...whereClauses, inArray(assets.id, chunk)));
+      matched.push(...rows.map((r) => r.id));
+    }
+    return matched;
+  }
+
+  const rows = await fetchAllBatches((afterId, limit) =>
+    db
+      .selectDistinctOn([assets.id], { id: assets.id })
+      .from(assets)
+      .leftJoin(exif, eq(assets.id, exif.assetId))
+      .where(and(...whereClauses, ...(afterId ? [gt(assets.id, afterId)] : [])))
+      .orderBy(assets.id)
+      .limit(limit)
+  );
+  return rows.map((r) => r.id);
 }
 
 async function resolveAssetTrigger(
@@ -80,21 +127,27 @@ async function resolveAssetTrigger(
   let candidateIds: string[];
 
   if (subType === "new_asset") {
-    const rows = await db
-      .selectDistinctOn([assets.id], { id: assets.id })
-      .from(assets)
-      .where(and(...baseConditions, gte(assets.createdAt, sinceDate)))
-      .limit(10000);
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, gte(assets.createdAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
     const totalCandidates = rows.length;
     // For new_asset: skip any asset we've ever processed
     candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
     log(runId, `Trigger [new_asset]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
   } else if (subType === "asset_updated") {
-    const rows = await db
-      .selectDistinctOn([assets.id], { id: assets.id, updatedAt: assets.updatedAt })
-      .from(assets)
-      .where(and(...baseConditions, gte(assets.updatedAt, sinceDate)))
-      .limit(10000);
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id, updatedAt: assets.updatedAt })
+        .from(assets)
+        .where(and(...baseConditions, gte(assets.updatedAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
     const totalCandidates = rows.length;
     // For asset_updated: only skip if we processed it AFTER its current updatedAt
     candidateIds = rows
@@ -107,11 +160,14 @@ async function resolveAssetTrigger(
     log(runId, `Trigger [asset_updated]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not updated since processing), ${candidateIds.length} remaining`);
   } else {
     // all_assets — no dedup
-    const rows = await db
-      .selectDistinctOn([assets.id], { id: assets.id })
-      .from(assets)
-      .where(and(...baseConditions))
-      .limit(10000);
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
     log(runId, `Trigger [all_assets]: ${rows.length} assets found`);
     return rows.map((r) => r.id);
   }
@@ -244,19 +300,8 @@ export async function executeWorkflow(
 
           const whereClauses = buildConditions(conditions, user.id);
 
-          // Scope to incoming assets if available
-          if (assetIds !== null && assetIds.length > 0) {
-            whereClauses.push(inArray(assets.id, assetIds));
-          }
-
-          const matchedRows = await db
-            .selectDistinctOn([assets.id], { id: assets.id })
-            .from(assets)
-            .leftJoin(exif, eq(assets.id, exif.assetId))
-            .where(and(...whereClauses))
-            .limit(10000);
-
-          const matchedIds = matchedRows.map((r) => r.id);
+          // Scoped to incoming assets (chunked) when available
+          const matchedIds = await queryConditionMatches(whereClauses, assetIds);
           const matchedSet = new Set(matchedIds);
 
           let trueIds = matchedIds;
@@ -298,19 +343,8 @@ export async function executeWorkflow(
 
             const whereClauses = buildConditions(c.conditions || [], user.id);
 
-            // Scope to remaining assets if available
-            if (remaining !== null && remaining.length > 0) {
-              whereClauses.push(inArray(assets.id, remaining));
-            }
-
-            const matchedRows = await db
-              .selectDistinctOn([assets.id], { id: assets.id })
-              .from(assets)
-              .leftJoin(exif, eq(assets.id, exif.assetId))
-              .where(and(...whereClauses))
-              .limit(10000);
-
-            const matchedIds = matchedRows.map((r) => r.id);
+            // Scoped to remaining assets (chunked) when available
+            const matchedIds = await queryConditionMatches(whereClauses, remaining);
             const matchedSet = new Set(matchedIds);
             let caseIds: string[];
 

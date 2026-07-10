@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { appDb } from "@/db";
 import { importJobItems } from "@/db/schema";
-import { ENV } from "@/config/environment";
 import {
   ensurePowerToolsTag,
   HeadersRecord,
@@ -10,12 +9,9 @@ import {
   uploadAssetBuffer,
   SharedAssetPayload,
   DownloadedAssetPayload,
-  DEVICE_ID,
   parseFileNameFromDisposition,
 } from "@/pages/api/import-shared/helpers";
 import type { ImportJob, ImportJobItem, ImportProcessor, ProcessorContext, SetupResult } from "../types";
-
-const makeDeviceAssetId = (relativePath: string) => `shared-nc-${relativePath}`;
 
 const buildBasicAuth = (username: string, password: string): string => {
   const encoded = Buffer.from(`${username}:${password}`).toString("base64");
@@ -66,43 +62,7 @@ export class NextcloudSharedLinkProcessor implements ImportProcessor {
       .from(importJobItems)
       .where(eq(importJobItems.jobId, job.id));
 
-    // Build deviceAssetIds for dedup check
-    const deviceAssetIds: string[] = [];
-    const deviceAssetIdLookup = new Map<string, string>();
-    for (const item of items) {
-      const deviceAssetId = makeDeviceAssetId(item.assetId);
-      deviceAssetIds.push(deviceAssetId);
-      deviceAssetIdLookup.set(deviceAssetId.toLowerCase(), item.assetId);
-    }
-
-    // Check which assets already exist in Immich
     const skipAssetIds: string[] = [];
-    if (deviceAssetIds.length > 0) {
-      try {
-        const jsonHeaders: HeadersRecord = { ...headers, "Content-Type": "application/json" };
-        const checkResponse = await fetch(`${ENV.IMMICH_URL}/api/assets/exist`, {
-          method: "POST",
-          headers: jsonHeaders,
-          body: JSON.stringify({ deviceAssetIds, deviceId: DEVICE_ID }),
-        });
-
-        if (checkResponse.ok) {
-          const existPayload = await checkResponse.json().catch(() => ({}));
-          const existingIds: string[] = existPayload?.existingIds ?? [];
-          for (const deviceAssetId of existingIds) {
-            if (typeof deviceAssetId !== "string") continue;
-            const matchedAssetId = deviceAssetIdLookup.get(deviceAssetId.toLowerCase());
-            if (matchedAssetId) {
-              skipAssetIds.push(matchedAssetId);
-            }
-          }
-        } else {
-          console.warn(`[NextcloudProcessor] Failed to check existing assets (status ${checkResponse.status})`);
-        }
-      } catch (error) {
-        console.warn("[NextcloudProcessor] Unable to check existing assets", error);
-      }
-    }
 
     // Parse importData for album options
     let importData: Record<string, unknown> = {};
@@ -199,7 +159,6 @@ export class NextcloudSharedLinkProcessor implements ImportProcessor {
       downloaded,
       uploadHeaders as HeadersRecord,
       headers as HeadersRecord,
-      makeDeviceAssetId(relativePath),
       tagId
     );
 

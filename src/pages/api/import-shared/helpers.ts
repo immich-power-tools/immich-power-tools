@@ -174,7 +174,6 @@ export const uploadAssetBuffer = async (
   payload: DownloadedAssetPayload,
   uploadHeaders: HeadersRecord,
   jsonHeaders: HeadersRecord,
-  deviceAssetId: string,
   tagId?: string
 ): Promise<string> => {
   const fileType = asset.type ?? inferAssetTypeFromName(payload.fileName);
@@ -187,14 +186,11 @@ export const uploadAssetBuffer = async (
   const modifiedAt = asset.localDateTime ?? asset.fileCreatedAt ?? createdAt;
 
   const formData = new FormData();
-  formData.set("deviceAssetId", deviceAssetId);
-  formData.set("deviceId", DEVICE_ID);
   formData.set("fileCreatedAt", createdAt);
   formData.set("fileModifiedAt", modifiedAt);
   formData.set("fileType", fileType);
-  formData.set("duration", asset.duration ?? "0:00:00.000000");
   formData.set("assetData", blob, resolvedFileName);
-  if (asset.isArchived) formData.set("isArchived", String(asset.isArchived));
+  if (asset.isArchived) formData.set("visibility", "archive");
   if (asset.isFavorite) formData.set("isFavorite", String(asset.isFavorite));
 
   const uploadResponse = await fetch(`${ENV.IMMICH_URL}/api/assets`, {
@@ -220,6 +216,52 @@ export const uploadAssetBuffer = async (
     await tagAssetWithPowerTools(tagId, uploadedId, jsonHeaders);
   }
   return uploadedId;
+};
+
+export const fetchSourceAssetChecksum = async (
+  origin: string,
+  assetId: string,
+  key: string
+): Promise<string | null> => {
+  try {
+    const res = await fetch(
+      `${origin}/api/assets/${assetId}?key=${encodeURIComponent(key)}`,
+      { headers: { accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return typeof data?.checksum === "string" ? data.checksum : null;
+  } catch {
+    return null;
+  }
+};
+
+export const findExistingAssetIds = async (
+  targetJsonHeaders: HeadersRecord,
+  items: { id: string; checksum: string }[]
+): Promise<Set<string>> => {
+  const existing = new Set<string>();
+  if (items.length === 0) return existing;
+  try {
+    const res = await fetch(`${ENV.IMMICH_URL}/api/assets/bulk-upload-check`, {
+      method: "POST",
+      headers: targetJsonHeaders,
+      body: JSON.stringify({ assets: items }),
+    });
+    if (!res.ok) {
+      console.warn(`[import] bulk-upload-check failed (status ${res.status})`);
+      return existing;
+    }
+    const data = await res.json().catch(() => ({}));
+    for (const result of data?.results ?? []) {
+      if (result?.action === "reject" && result?.reason === "duplicate" && typeof result?.id === "string") {
+        existing.add(result.id);
+      }
+    }
+  } catch (error) {
+    console.warn("[import] bulk-upload-check error", error);
+  }
+  return existing;
 };
 
 export const tagAssetWithPowerTools = async (

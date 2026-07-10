@@ -6,6 +6,24 @@ import { getCookie } from "@/lib/cookie"
 import { NextApiRequest } from "next"
 
 
+const describeFetchError = (error: any, url: string): string => {
+  let current = error;
+  while (current?.cause) current = current.cause;
+  const code = current?.code as string | undefined;
+  switch (code) {
+    case 'ENOTFOUND':
+      return `Cannot resolve host for ${url}. Check IMMICH_URL — from inside this container, an IP on the host network may not be reachable; prefer the Immich container name (e.g. http://immich_server:2283).`;
+    case 'ECONNREFUSED':
+      return `Connection refused at ${url}. Check that the Immich server is running and that IMMICH_URL points to its internal port (default 2283).`;
+    case 'ETIMEDOUT':
+    case 'EHOSTUNREACH':
+    case 'ENETUNREACH':
+      return `Cannot reach Immich API at ${url} (${code}). Likely the power-tools container is not on the same network as the Immich server.`;
+    default:
+      return `Failed to connect to Immich API at ${url}: ${current?.message || error?.message || 'Unknown error'}${code ? ` (${code})` : ''}`;
+  }
+};
+
 export const getCurrentUserFromAPIKey = () => {
   if (!ENV.IMMICH_URL || !ENV.IMMICH_API_KEY) return null;
 
@@ -32,8 +50,9 @@ export const getCurrentUserFromAPIKey = () => {
     if (error instanceof APIError) {
       throw error;
     }
+    console.error('[immich-api] connect failed:', { url: ENV.IMMICH_URL, message: error?.message, cause: error?.cause });
     throw new APIError({
-      message: "Failed to connect to Immich API: " + ENV.IMMICH_URL,
+      message: describeFetchError(error, ENV.IMMICH_URL),
       status: 500,
     });
   })
@@ -51,8 +70,9 @@ export const getCurrentUserFromAccessToken = (token: string) => {
     }
     return null
   }).catch((error) => {
+    console.error('[immich-api] connect failed:', { url: ENV.IMMICH_URL, message: error?.message, cause: error?.cause });
     throw new APIError({
-      message: "Failed to connect to Immich API: " + ENV.IMMICH_URL,
+      message: describeFetchError(error, ENV.IMMICH_URL),
       status: 500,
     });
   })

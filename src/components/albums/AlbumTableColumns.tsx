@@ -2,7 +2,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { IAlbum } from "@/types/album"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown, MoreHorizontal, Calendar, Camera, Users, HardDrive } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Calendar, Camera, Users, HardDrive, ImageOff } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,15 +48,21 @@ export const albumColumns: ColumnDef<IAlbum>[] = [
       const album = row.original
       return (
         <div className="w-16 h-16 rounded-md overflow-hidden">
-          <LazyImage
-            src={ASSET_THUMBNAIL_PATH(album.albumThumbnailAssetId)}
-            alt={album.albumName}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
+          {album.albumThumbnailAssetId ? (
+            <LazyImage
+              src={ASSET_THUMBNAIL_PATH(album.albumThumbnailAssetId)}
+              alt={album.albumName}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <ImageOff size={20} />
+            </div>
+          )}
         </div>
       )
     },
@@ -164,16 +170,20 @@ export const albumColumns: ColumnDef<IAlbum>[] = [
     },
     cell: ({ row }) => {
       const album = row.original
-      const numberOfDays = differenceInDays(album.lastPhotoDate, album.firstPhotoDate)
-      
+      const numberOfDays = (album.firstPhotoDate && album.lastPhotoDate)
+        ? differenceInDays(album.lastPhotoDate, album.firstPhotoDate)
+        : null
+
       return (
         <div className="space-y-1">
           <div className="text-sm">
             {album.firstPhotoDate ? formatDate(album.firstPhotoDate.toString(), 'MMM d, yyyy') : ''} - {album.lastPhotoDate ? formatDate(album.lastPhotoDate.toString(), 'MMM d, yyyy') : ''}
           </div>
-          <div className="text-xs text-muted-foreground">
-            {numberOfDays === 0 ? '1 day' : `${numberOfDays.toLocaleString()} days`}
-          </div>
+          {numberOfDays !== null && (
+            <div className="text-xs text-muted-foreground">
+              {numberOfDays === 0 ? '1 day' : `${numberOfDays.toLocaleString()} days`}
+            </div>
+          )}
         </div>
       )
     },

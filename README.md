@@ -2,6 +2,9 @@
 
 A unofficial immich client to provide better tools to organize and manage your immich account. Building it to speed up your workflows in Immich to organize your people and albums.
 
+> [!IMPORTANT]
+> **Immich v3.0 compatibility:** Power Tools **v0.22.0 and above require Immich 3.0 or newer**.
+
 [Watch Demo Video here](https://www.loom.com/embed/13aa90d8ab2e4acab0993bdc8703a750?sid=71498690-b745-473f-b239-a7bdbe6efc21)
 
 [![Immich Power Tools](./screenshots/screenshot-1.png)](https://www.loom.com/embed/13aa90d8ab2e4acab0993bdc8703a750?sid=71498690-b745-473f-b239-a7bdbe6efc21)

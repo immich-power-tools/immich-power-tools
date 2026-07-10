@@ -4,8 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ICondition, ConditionType } from "@/types/workflow";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, Tag } from "lucide-react";
 import { listPeople } from "@/handlers/api/people.handler";
+import { listTags, ITag } from "@/handlers/api/tag.handler";
 import { IPerson } from "@/types/person";
 import { PERSON_THUBNAIL_PATH } from "@/config/routes";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const conditionTypeLabels: Record<ConditionType, string> = {
   person: "Person",
   person_unnamed: "Unnamed People",
+  tag: "Tag",
   city: "City",
   state: "State",
   country: "Country",
@@ -27,8 +29,14 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   asset_type: "Asset Type",
   iso_range: "ISO Range",
   focal_length: "Focal Length",
+  resolution: "Resolution",
   rating: "Rating",
   is_favorited: "Favorited",
+  file_size: "File Size",
+  filename: "File Name / Path",
+  file_extension: "File Extension",
+  face_count: "Face Count",
+  time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
@@ -124,6 +132,95 @@ function PersonPicker({ selectedIds, onChange }: PersonPickerProps) {
   );
 }
 
+interface TagPickerProps {
+  selectedIds: string[];
+  onChange: (tagIds: string[], tagValues: string[]) => void;
+}
+
+function TagPicker({ selectedIds, onChange }: TagPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [tags, setTags] = useState<ITag[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    listTags()
+      .then((res) => setTags(res.tags))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selectedSet = new Set(selectedIds || []);
+  const selectedTags = tags.filter((t) => selectedSet.has(t.id));
+
+  const toggleTag = (tag: ITag) => {
+    let nextIds: string[];
+    let nextValues: string[];
+    if (selectedSet.has(tag.id)) {
+      nextIds = selectedIds.filter((id) => id !== tag.id);
+      nextValues = selectedTags.filter((t) => t.id !== tag.id).map((t) => t.value);
+    } else {
+      nextIds = [...selectedIds, tag.id];
+      nextValues = [...selectedTags.map((t) => t.value), tag.value];
+    }
+    onChange(nextIds, nextValues);
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Selected tag chips */}
+      {selectedTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedTags.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => toggleTag(t)}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted hover:bg-destructive/10 transition-colors group"
+            >
+              <Tag className="h-2.5 w-2.5" style={t.color ? { color: t.color } : undefined} />
+              <span className="text-[10px] font-medium">{t.value}</span>
+              <X className="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Picker */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className="flex items-center gap-2 h-7 px-2 w-full border rounded text-xs bg-background hover:bg-muted transition-colors">
+            <span className="text-muted-foreground">
+              {selectedIds.length === 0 ? "Select tags..." : "Add more..."}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0 z-[10000]" align="start">
+          <Command>
+            <CommandInput placeholder="Search tags..." className="text-xs" />
+            <CommandList>
+              <CommandEmpty>{loading ? "Loading..." : "No tags found."}</CommandEmpty>
+              <CommandGroup>
+                {tags.map((tag) => (
+                  <CommandItem
+                    key={tag.id}
+                    value={tag.value}
+                    onSelect={() => toggleTag(tag)}
+                    className="flex items-center gap-2"
+                  >
+                    <Tag className="h-3 w-3" style={tag.color ? { color: tag.color } : undefined} />
+                    <span className="text-xs truncate flex-1">{tag.value}</span>
+                    <Check className={cn("h-3 w-3", selectedSet.has(tag.id) ? "opacity-100" : "opacity-0")} />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 interface ConditionEditorProps {
   conditions: ICondition[];
   onChange: (conditions: ICondition[]) => void;
@@ -192,6 +289,25 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
           <Input className="h-7 text-xs w-16" type="number" min={1} max={5} placeholder="Max" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: parseInt(e.target.value) || undefined })} />
         </div>
       );
+    case "resolution": {
+      const unit = (condition.metric || "megapixels") === "megapixels" ? "MP" : "px";
+      return (
+        <div className="space-y-2">
+          <Select value={condition.metric || "megapixels"} onValueChange={(v) => onChange({ ...condition, metric: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="megapixels">Megapixels</SelectItem>
+              <SelectItem value="short_edge">Short Edge (px)</SelectItem>
+              <SelectItem value="long_edge">Long Edge (px)</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder={`Min ${unit}`} value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+            <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder={`Max ${unit}`} value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+          </div>
+        </div>
+      );
+    }
     case "is_favorited":
       return (
         <Select value={condition.value === false ? "false" : "true"} onValueChange={(v) => onChange({ ...condition, value: v === "true" })}>
@@ -201,6 +317,71 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
             <SelectItem value="false">Not Favorited</SelectItem>
           </SelectContent>
         </Select>
+      );
+    case "file_size":
+      return (
+        <div className="flex items-center gap-2">
+          <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder="Min MB" value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+          <Input className="h-7 text-xs" type="number" min={0} step="any" placeholder="Max MB" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseFloat(e.target.value) })} />
+        </div>
+      );
+    case "filename":
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Select value={condition.field || "name"} onValueChange={(v) => onChange({ ...condition, field: v })}>
+              <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">File Name</SelectItem>
+                <SelectItem value="path">File Path</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={condition.match || "contains"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contains">Contains</SelectItem>
+                <SelectItem value="not_contains">Does not contain</SelectItem>
+                <SelectItem value="starts_with">Starts with</SelectItem>
+                <SelectItem value="ends_with">Ends with</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input className="h-7 text-xs" placeholder="e.g. Screenshot" value={condition.text || ""} onChange={(e) => onChange({ ...condition, text: e.target.value })} />
+        </div>
+      );
+    case "file_extension":
+      return (
+        <div className="space-y-2">
+          <Select value={condition.match || "in"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="in">Is any of</SelectItem>
+              <SelectItem value="not_in">Is none of</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input className="h-7 text-xs" placeholder="e.g. png, gif, heic" value={condition.extensions || ""} onChange={(e) => onChange({ ...condition, extensions: e.target.value })} />
+        </div>
+      );
+    case "face_count":
+      return (
+        <div className="flex items-center gap-2">
+          <Input className="h-7 text-xs w-20" type="number" min={0} placeholder="Min" value={condition.min ?? ""} onChange={(e) => onChange({ ...condition, min: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+          <Input className="h-7 text-xs w-20" type="number" min={0} placeholder="Max" value={condition.max ?? ""} onChange={(e) => onChange({ ...condition, max: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+          <span className="text-xs text-muted-foreground">faces</span>
+        </div>
+      );
+    case "time_of_day":
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
+            <Input className="h-7 text-xs w-16" type="number" min={0} max={23} placeholder="0" value={condition.fromHour ?? ""} onChange={(e) => onChange({ ...condition, fromHour: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input className="h-7 text-xs w-16" type="number" min={0} max={23} placeholder="23" value={condition.toHour ?? ""} onChange={(e) => onChange({ ...condition, toHour: e.target.value === "" ? undefined : parseInt(e.target.value) })} />
+            <span className="text-xs text-muted-foreground">h</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Hours 0–23; From &gt; To wraps past midnight (e.g. 22 to 5).</p>
+        </div>
       );
     case "person":
       return (
@@ -217,6 +398,24 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
             selectedIds={condition.personIds || (condition.personId ? [condition.personId] : [])}
             onChange={(personIds, personNames) => onChange({ ...condition, personIds, personNames })}
           />
+        </div>
+      );
+    case "tag":
+      return (
+        <div className="space-y-2">
+          <Select value={condition.match || "contains_any"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="contains_any">Has any of</SelectItem>
+              <SelectItem value="contains_all">Has all of</SelectItem>
+              <SelectItem value="not_contains">Has none of</SelectItem>
+            </SelectContent>
+          </Select>
+          <TagPicker
+            selectedIds={condition.tagIds || []}
+            onChange={(tagIds, tagValues) => onChange({ ...condition, tagIds, tagValues })}
+          />
+          <p className="text-[10px] text-muted-foreground">Selected tags also match their child tags.</p>
         </div>
       );
     case "geo_radius":

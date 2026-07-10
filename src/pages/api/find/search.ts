@@ -4,6 +4,7 @@ import { ASSET_VIDEO_PATH } from "@/config/routes";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { cleanUpAsset, isFlipped } from "@/helpers/asset.helper";
 import { parseFindQuery } from "@/helpers/ai.helper";
+import { getUserHeaders } from "@/helpers/user.helper";
 import { person } from "@/schema";
 import { Person } from "@/schema/person.schema";
 import { inArray } from "drizzle-orm";
@@ -16,6 +17,9 @@ export default async function search(
   try {
     const { query } = req.body;
     const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return res.status(403).json({ message: "Not authenticated" });
+    }
     const parsedQuery = await parseFindQuery(query as string);
     const { personIds } = parsedQuery;
 
@@ -32,10 +36,7 @@ export default async function search(
     return fetch(url, {
       method: "POST",
       body: JSON.stringify({ ...parsedQuery, withExif: true }),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${currentUser?.accessToken}`,
-      },
+      headers: getUserHeaders(currentUser, { "Content-Type": "application/json" }),
     })
       .then((response) => {
         if (response.status !== 200) {

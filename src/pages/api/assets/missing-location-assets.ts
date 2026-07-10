@@ -15,7 +15,6 @@ const getRowsByDates = async (startDateDate: Date, endDateDate: Date, currentUse
   return db
     .select({
       id: assets.id,
-      deviceId: assets.deviceId,
       type: assets.type,
       originalPath: assets.originalPath,
       isFavorite: assets.isFavorite,
@@ -46,7 +45,6 @@ const getRowsByDates = async (startDateDate: Date, endDateDate: Date, currentUse
 const getRowsByAlbums = async (currentUser: IUser, albumId: string) => {
   return db.select({
     id: assets.id,
-    deviceId: assets.deviceId,
     type: assets.type,
     originalPath: assets.originalPath,
     isFavorite: assets.isFavorite,

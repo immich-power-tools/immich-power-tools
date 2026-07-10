@@ -6,7 +6,7 @@ import { exif } from "@/schema";
 import { assets } from "@/schema/assets.schema";
 import { person } from "@/schema/person.schema";
 import { assetFaces } from "@/schema/assetFaces.schema";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { IUser } from "@/types/user";
 import { getUserHeaders } from "@/helpers/user.helper";
 
@@ -26,6 +26,16 @@ async function getWorkflowApiKey(ownerId: string): Promise<string | null> {
     .from(settings)
     .where(and(eq(settings.key, WORKFLOW_API_KEY_SETTING), eq(settings.ownerId, ownerId)));
   return row?.value || null;
+}
+
+// Immich bulk endpoints are called in batches so large asset sets don't
+// produce oversized request bodies.
+const API_BATCH_SIZE = 1000;
+
+async function immichFetchBatched(path: string, method: string, ids: string[], extraBody: Record<string, any>, user: IUser): Promise<void> {
+  for (let i = 0; i < ids.length; i += API_BATCH_SIZE) {
+    await immichFetch(path, method, { ...extraBody, ids: ids.slice(i, i + API_BATCH_SIZE) }, user);
+  }
 }
 
 async function immichFetch(path: string, method: string, body: any, user: IUser): Promise<any> {
@@ -136,48 +146,68 @@ export async function executeAction(
   switch (subType) {
     case "create_album": {
       const albumName = await resolveTemplate(config.nameTemplate || "Auto Album", assetIds);
-      const album = await immichFetch("/albums", "POST", { albumName, assetIds }, user);
+      const album = await immichFetch("/albums", "POST", { albumName, assetIds: assetIds.slice(0, API_BATCH_SIZE) }, user);
+      if (assetIds.length > API_BATCH_SIZE) {
+        await immichFetchBatched(`/albums/${album.id}/assets`, "PUT", assetIds.slice(API_BATCH_SIZE), {}, user);
+      }
       return { action: "create_album", assetsProcessed: assetIds.length, albumId: album.id, albumName };
     }
 
     case "add_to_album": {
       if (!config.albumId) throw new Error("Album ID is required for add_to_album");
-      await immichFetch(`/albums/${config.albumId}/assets`, "PUT", { ids: assetIds }, user);
+      await immichFetchBatched(`/albums/${config.albumId}/assets`, "PUT", assetIds, {}, user);
       return { action: "add_to_album", assetsProcessed: assetIds.length, albumId: config.albumId };
     }
 
     case "remove_from_album": {
       if (!config.albumId) throw new Error("Album ID is required for remove_from_album");
-      await immichFetch(`/albums/${config.albumId}/assets`, "DELETE", { ids: assetIds }, user);
+      await immichFetchBatched(`/albums/${config.albumId}/assets`, "DELETE", assetIds, {}, user);
       return { action: "remove_from_album", assetsProcessed: assetIds.length, albumId: config.albumId };
     }
 
     case "favorite": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, isFavorite: true }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { isFavorite: true }, user);
       return { action: "favorite", assetsProcessed: assetIds.length };
     }
 
     case "unfavorite": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, isFavorite: false }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { isFavorite: false }, user);
       return { action: "unfavorite", assetsProcessed: assetIds.length };
     }
 
     case "archive": {
-      await immichFetch("/assets", "PUT", { ids: assetIds, isArchived: true }, user);
+      await immichFetchBatched("/assets", "PUT", assetIds, { visibility: "archive" }, user);
       return { action: "archive", assetsProcessed: assetIds.length };
     }
 
     case "tag": {
       if (!config.tagName) throw new Error("Tag name is required");
-      // Tags API may vary by Immich version — try the standard approach
       try {
         // Create or get tag
-        const tag = await immichFetch("/tags", "POST", { name: config.tagName, type: "OBJECT" }, user);
+        const tag = await immichFetch("/tags", "POST", { name: config.tagName }, user);
         // Tag assets
-        await immichFetch(`/tags/${tag.id}/assets`, "PUT", { ids: assetIds }, user);
+        await immichFetchBatched(`/tags/${tag.id}/assets`, "PUT", assetIds, {}, user);
         return { action: "tag", assetsProcessed: assetIds.length };
       } catch (e: any) {
         return { action: "tag", assetsProcessed: 0, error: e.message };
+      }
+    }
+
+    case "remove_tag": {
+      if (!config.tagName) throw new Error("Tag name is required");
+      try {
+        // Look up the tag via Immich's API (same source of truth the "tag"
+        // action creates/gets from) without creating it — removing a tag
+        // that doesn't exist is a no-op, not an error.
+        const tags = await immichFetch("/tags", "GET", undefined, user);
+        const tag = Array.isArray(tags) ? tags.find((t: any) => t.value === config.tagName) : undefined;
+        if (!tag) {
+          return { action: "remove_tag", assetsProcessed: 0 };
+        }
+        await immichFetch(`/tags/${tag.id}/assets`, "DELETE", { ids: assetIds }, user);
+        return { action: "remove_tag", assetsProcessed: assetIds.length };
+      } catch (e: any) {
+        return { action: "remove_tag", assetsProcessed: 0, error: e.message };
       }
     }
 

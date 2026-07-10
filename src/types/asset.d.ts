@@ -1,7 +1,6 @@
 export interface IAsset {
   id: string;
   ownerId: string;
-  deviceId: string;
   type: string;
   originalPath: string;
   isFavorite: boolean;
@@ -32,9 +31,7 @@ export interface IDuplicateAssetRecord {
 
 export interface IDuplicateAsset {
   id:               string;
-  deviceAssetId:    string;
   ownerId:          string;
-  deviceId:         string;
   libraryId:        null;
   type:             string;
   originalPath:     string;
@@ -46,10 +43,8 @@ export interface IDuplicateAsset {
   localDateTime:    Date;
   updatedAt:        Date;
   isFavorite:       boolean;
-  isArchived:       boolean;
-  isTrashed:        boolean;
   visibility:       string;
-  duration:         string;
+  duration:         number | null;
   exifInfo:         IDuplicateAssetExifInfo;
   livePhotoVideoId: null;
   people:           any[];
