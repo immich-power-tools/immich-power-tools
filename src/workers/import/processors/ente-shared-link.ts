@@ -225,7 +225,6 @@ export class EnteSharedLinkProcessor implements ImportProcessor {
       downloaded,
       uploadHeaders as HeadersRecord,
       headers as HeadersRecord,
-      makeDeviceAssetId(item.assetId),
       tagId
     );
 
