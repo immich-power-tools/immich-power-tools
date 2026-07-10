@@ -1,37 +1,34 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import { db } from "@/config/db";
-import { IPotentialAlbumsDatesResponse } from "@/handlers/api/album.handler";
+// Groups orphan assets for the Potential Albums list panel, either by single
+// day (default) or by trip (`?groupBy=trip`, consecutive away days) — see
+// src/helpers/potentialAlbumsGrouping.helper.ts for the two implementations.
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
 import { parseDate } from "@/helpers/date.helper";
-import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
-import { assets } from "@/schema/assets.schema";
-import { exif } from "@/schema/exif.schema";
-import { and, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { fetchDayGroups, fetchTripGroups } from "@/helpers/potentialAlbumsGrouping.helper";
 import type { NextApiRequest, NextApiResponse } from "next";
-
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const { sortBy = "date", sortOrder = "desc", minAssets = 1 } = req.query as any;
-    const currentUser = await getCurrentUser(req)
-    const rows = await db.select({
-      date: sql`DATE(${exif.dateTimeOriginal})`,
-      asset_count: desc(count(assets.id)),
-    }).from(assets)
-      .leftJoin(albumsAssetsAssets, eq(assets.id, albumsAssetsAssets.assetId))
-      .leftJoin(exif, eq(assets.id, exif.assetId))
-      .where(and  (
-        eq(assets.ownerId, currentUser.id),
-        eq(assets.visibility, "timeline"),
-        isNull(albumsAssetsAssets.albumId),
-        isNotNull(exif.dateTimeOriginal),
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
-      ))
-      .groupBy(sql`DATE(${exif.dateTimeOriginal})`) as IPotentialAlbumsDatesResponse[];
-  
+    const { groupBy = "day" } = req.query as { groupBy?: string };
+
+    if (groupBy === "trip") {
+      const { homeRadiusKm, minTripDays, gapTolerance } = req.query as Record<string, string | undefined>;
+      const result = await fetchTripGroups(currentUser.id, {
+        homeRadiusKm: homeRadiusKm !== undefined ? Number(homeRadiusKm) : undefined,
+        minTripDays: minTripDays !== undefined ? Number(minTripDays) : undefined,
+        gapTolerance: gapTolerance !== undefined ? Number(gapTolerance) : undefined,
+      });
+      return res.status(200).json(result);
+    }
+
+    const { sortBy = "date", sortOrder = "desc", minAssets = 1 } = req.query as any;
+    const rows = await fetchDayGroups(currentUser.id);
 
     const filteredRows = rows.filter((row) => Number(row.asset_count) >= Number(minAssets));
     if (sortBy === "date") {

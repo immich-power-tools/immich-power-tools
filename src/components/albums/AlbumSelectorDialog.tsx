@@ -20,17 +20,36 @@ interface IProps {
   onSelected: (album: IAlbum) => Promise<void>;
   onCreated?: (album: IAlbum) => Promise<void>;
   onSubmit?: (data: IAlbumCreate) => Promise<any>;
+  /**
+   * Pre-filled album name suggestion for the "Create New" tab. Useful when
+   * the caller already has a sensible default (e.g. the trip suggested name
+   * "20180401 - Lisboa"). The user can still edit it.
+   */
+  defaultName?: string;
 }
-export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit }: IProps) {
+export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit, defaultName }: IProps) {
   const [open, setOpen] = useState(false);
   const [albums, setAlbums] = useState<IAlbum[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { selectedIds, assets } = usePhotoSelectionContext();
+  const { selectedIds, assets, config } = usePhotoSelectionContext();
   const [formData, setFormData] = useState({
-    albumName: "",
+    albumName: defaultName ?? config.suggestedAlbumName ?? "",
   });
+
+  // Track the previous suggestion so we only overwrite the user's typing when
+  // the suggestion itself changes (e.g. they picked a different trip), not on
+  // every render. This keeps "user is typing" stable while still flipping the
+  // input as soon as a trip selection arrives.
+  const lastSuggestionRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const next = defaultName ?? config.suggestedAlbumName ?? "";
+    if (!next) return;
+    if (lastSuggestionRef.current === next) return;
+    lastSuggestionRef.current = next;
+    setFormData({ albumName: next });
+  }, [defaultName, config.suggestedAlbumName]);
 
   const fetchData = () => {
     setLoading(true);

@@ -1,6 +1,7 @@
 import AlbumSelectorDialog from "@/components/albums/AlbumSelectorDialog";
 import PotentialAlbumsAssets from "@/components/albums/potential-albums/PotentialAlbumsAssets";
 import PotentialAlbumsDates from "@/components/albums/potential-albums/PotentialAlbumsDates";
+import PotentialTrips from "@/components/albums/potential-albums/PotentialTrips";
 import AssetOffsetDialog from "@/components/assets/assets-options/AssetOffsetDialog";
 import PageLayout from "@/components/layouts/PageLayout";
 import FloatingBar from "@/components/shared/FloatingBar";
@@ -9,10 +10,11 @@ import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import PhotoSelectionContext, { IPhotoSelectionContext } from "@/contexts/PhotoSelectionContext";
-import { addAssetToAlbum, createAlbum } from "@/handlers/api/album.handler";
+import { addAssetToAlbum, createAlbum, IPotentialTrip } from "@/handlers/api/album.handler";
 import { deleteAssets } from "@/handlers/api/asset.handler";
 import { IAlbum, IAlbumCreate } from "@/types/album";
 import { useRouter } from "next/router";
@@ -23,13 +25,14 @@ export default function PotentialAlbums() {
   const { id } = useCurrentUser();
 
   const { query } = useRouter();
-  const { startDate } = query as { startDate: string };
+  const { startDate, endDate } = query as { startDate?: string; endDate?: string };
 
   const [contextState, setContextState] = React.useState<IPhotoSelectionContext>({
     selectedIds: [],
     assets: [],
     config: {
       startDate: startDate || undefined,
+      endDate: endDate || undefined,
       minAssets: 1,
     },
     updateContext: (newConfig: Partial<IPhotoSelectionContext>) => {
@@ -140,7 +143,30 @@ export default function PotentialAlbums() {
         }}
       >
         <div className="flex divide-y">
-          <PotentialAlbumsDates />
+          <Tabs defaultValue={endDate ? "trips" : "days"} className="min-w-[280px] max-w-[340px] border-r">
+            <TabsList className="w-full grid grid-cols-2 rounded-none">
+              <TabsTrigger value="days">Days</TabsTrigger>
+              <TabsTrigger value="trips">Trips</TabsTrigger>
+            </TabsList>
+            <TabsContent value="days" className="m-0">
+              <PotentialAlbumsDates />
+            </TabsContent>
+            <TabsContent value="trips" className="m-0">
+              <PotentialTrips
+                onSelectTrip={(trip: IPotentialTrip) =>
+                  updateContext({
+                    config: {
+                      ...contextState.config,
+                      startDate: trip.startDate,
+                      endDate: trip.endDate,
+                      tripCity: trip.cityName,
+                      suggestedAlbumName: trip.suggestedName,
+                    },
+                  })
+                }
+              />
+            </TabsContent>
+          </Tabs>
           <PotentialAlbumsAssets />
         </div>
         {selectedAssets.length > 0 &&
@@ -175,7 +201,11 @@ export default function PotentialAlbums() {
                     Select all
                   </Button>
                 )}
-                <AlbumSelectorDialog onSelected={handleSelect} onSubmit={handleCreate} />
+                <AlbumSelectorDialog
+                  onSelected={handleSelect}
+                  onSubmit={handleCreate}
+                  defaultName={contextState.config.suggestedAlbumName}
+                />
                 <AssetOffsetDialog assets={selectedAssets} onComplete={handleOffsetComplete} />
                 <div className="h-[10px] w-[1px] bg-zinc-500 dark:bg-zinc-600"></div>
 

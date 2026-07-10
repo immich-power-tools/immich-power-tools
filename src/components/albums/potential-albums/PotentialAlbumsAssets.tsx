@@ -1,5 +1,8 @@
 import { usePhotoSelectionContext } from "@/contexts/PhotoSelectionContext";
-import { listPotentialAlbumsAssets } from "@/handlers/api/album.handler";
+import {
+  listPotentialAlbumsAssets,
+  listPotentialTripAssets,
+} from "@/handlers/api/album.handler";
 import type { IAsset } from "@/types/asset";
 import React, { useEffect, useMemo, useState } from "react";
 import { CalendarArrowUp, Hourglass } from "lucide-react";
@@ -14,7 +17,7 @@ export default function PotentialAlbumsAssets() {
     updateContext,
     config
   } = usePhotoSelectionContext();
-  const { startDate } = config;
+  const { startDate, endDate, tripCity } = config;
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -26,7 +29,11 @@ export default function PotentialAlbumsAssets() {
       assets: [],
       selectedIds: [],
     });
-    return listPotentialAlbumsAssets({ startDate })
+    // If endDate is set we're in trip-range mode, else single-day mode.
+    const fetcher = endDate
+      ? listPotentialTripAssets(startDate, endDate, tripCity)
+      : listPotentialAlbumsAssets({ startDate });
+    return fetcher
       .then((fetchedAssets) => updateContext({ assets: fetchedAssets }))
       .catch(setErrorMessage)
       .finally(() => setLoading(false));
@@ -62,7 +69,8 @@ export default function PotentialAlbumsAssets() {
 
   useEffect(() => {
     if (startDate) fetchAssets();
-  }, [startDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, tripCity]);
 
   if (loading)
     return (

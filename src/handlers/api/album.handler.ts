@@ -24,6 +24,42 @@ export const listPotentialAlbumsAssets = async (filters: IPotentialAlbumsDatesFi
   return API.get(LIST_POTENTIAL_ALBUMS_ASSETS_PATH, filters).then((assets) => assets.map(cleanUpAsset));
 }
 
+export interface IPotentialTripsFilters {
+  homeRadiusKm?: number;
+  minTripDays?: number;
+  gapTolerance?: number;
+}
+
+export interface IPotentialTrip {
+  startDate: string;
+  endDate: string;
+  cityName: string | null;
+  countryName: string | null;
+  assetCount: number;
+  dayCount: number;
+  awayDays: number;
+  suggestedName: string;
+}
+
+export interface IPotentialTripsResponse {
+  home: { city: string | null; lat: number | null; lon: number | null };
+  trips: IPotentialTrip[];
+}
+
+export const listPotentialTrips = async (filters?: IPotentialTripsFilters): Promise<IPotentialTripsResponse> => {
+  return API.get(LIST_POTENTIAL_ALBUMS_DATES_PATH, { ...filters, groupBy: "trip" });
+}
+
+export const listPotentialTripAssets = async (
+  startDate: string,
+  endDate: string,
+  city?: string | null,
+): Promise<IAsset[]> => {
+  const params: Record<string, string> = { startDate, endDate, groupBy: "trip" };
+  if (city) params.city = city;
+  return API.get(LIST_POTENTIAL_ALBUMS_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
+}
+
 export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string }) => {
   return API.get(LIST_ALBUMS_PATH, filters);
 }

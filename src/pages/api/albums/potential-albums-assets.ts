@@ -1,60 +1,44 @@
-import { db } from "@/config/db";
+// Fetches orphan assets for the Potential Albums right-panel grid, either
+// for a single day (default) or a date range (`?groupBy=trip`) — see
+// src/helpers/potentialAlbumsAssets.helper.ts for the two implementations.
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
-import { isFlipped } from "@/helpers/asset.helper";
-import { sql } from "drizzle-orm";
+import { fetchDayAssets, fetchTripAssets } from "@/helpers/potentialAlbumsAssets.helper";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-const SELECT_ORPHAN_PHOTOS = (date: string, ownerId:  string) =>
-  sql.raw(`
-  SELECT 
-      a."id",
-      a."ownerId",
-      a."type",
-      a."originalPath",
-      a."isFavorite",
-      a."duration",
-      a."originalFileName",
-      
-      a."thumbhash",
-      a."deletedAt",
-      e."exifImageWidth",
-      e."exifImageHeight",
-      e."dateTimeOriginal",
-      e."orientation"
-  FROM 
-      asset a
-  LEFT JOIN 
-      album_asset aaa 
-      ON a.id = aaa."assetId"
-  LEFT JOIN 
-      asset_exif e 
-      ON a.id = e."assetId"
-  WHERE 
-      aaa."albumId" IS NULL 
-      AND a."ownerId" = '${ownerId}'
-      AND e."dateTimeOriginal"::date = '${date}'
-      AND a."visibility" = 'timeline'
-  ORDER BY
-      e."dateTimeOriginal" DESC
-`);
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const currentUser = await getCurrentUser(req)
-    const { startDate } = req.query as { startDate: string };
-    const { rows } = await db.execute(SELECT_ORPHAN_PHOTOS(startDate, currentUser.id));
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
-    const cleanedRows = rows.map((row: any) => {
-      return {
-        ...row,
-        exifImageWidth: isFlipped(row.orientation || 0) ? row.exifImageHeight : row.exifImageWidth,
-        exifImageHeight: isFlipped(row.orientation || 0) ? row.exifImageWidth : row.exifImageHeight,
-      };
-    });
-    return res.status(200).json(cleanedRows);
+    const { groupBy = "day", startDate, endDate, city } = req.query as {
+      groupBy?: string;
+      startDate?: string;
+      endDate?: string;
+      city?: string;
+    };
+
+    if (groupBy === "trip") {
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "startDate and endDate are required (YYYY-MM-DD)" });
+      }
+      // Interpolated into raw SQL below, so reject anything that isn't a
+      // plain date to keep this endpoint from becoming an injection vector.
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+      if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
+        return res.status(400).json({ error: "Invalid date format, expected YYYY-MM-DD" });
+      }
+      const cleaned = await fetchTripAssets(currentUser.id, startDate, endDate, city ?? null);
+      return res.status(200).json(cleaned);
+    }
+
+    if (!startDate) {
+      return res.status(400).json({ error: "startDate is required (YYYY-MM-DD)" });
+    }
+    const cleaned = await fetchDayAssets(currentUser.id, startDate);
+    return res.status(200).json(cleaned);
   } catch (error: any) {
     console.error(error);
     res.status(500).json({
