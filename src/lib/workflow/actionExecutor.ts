@@ -6,7 +6,7 @@ import { exif } from "@/schema";
 import { assets } from "@/schema/assets.schema";
 import { person } from "@/schema/person.schema";
 import { assetFaces } from "@/schema/assetFaces.schema";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { IUser } from "@/types/user";
 import { getUserHeaders } from "@/helpers/user.helper";
 
@@ -190,6 +190,24 @@ export async function executeAction(
         return { action: "tag", assetsProcessed: assetIds.length };
       } catch (e: any) {
         return { action: "tag", assetsProcessed: 0, error: e.message };
+      }
+    }
+
+    case "remove_tag": {
+      if (!config.tagName) throw new Error("Tag name is required");
+      try {
+        // Look up the tag via Immich's API (same source of truth the "tag"
+        // action creates/gets from) without creating it — removing a tag
+        // that doesn't exist is a no-op, not an error.
+        const tags = await immichFetch("/tags", "GET", undefined, user);
+        const tag = Array.isArray(tags) ? tags.find((t: any) => t.value === config.tagName) : undefined;
+        if (!tag) {
+          return { action: "remove_tag", assetsProcessed: 0 };
+        }
+        await immichFetch(`/tags/${tag.id}/assets`, "DELETE", { ids: assetIds }, user);
+        return { action: "remove_tag", assetsProcessed: assetIds.length };
+      } catch (e: any) {
+        return { action: "remove_tag", assetsProcessed: 0, error: e.message };
       }
     }
 
