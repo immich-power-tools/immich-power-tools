@@ -6,7 +6,7 @@ import { exif } from "@/schema";
 import { assets } from "@/schema/assets.schema";
 import { person } from "@/schema/person.schema";
 import { assetFaces } from "@/schema/assetFaces.schema";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { IUser } from "@/types/user";
 import { getUserHeaders } from "@/helpers/user.helper";
 
@@ -183,16 +183,15 @@ export async function executeAction(
     case "remove_tag": {
       if (!config.tagName) throw new Error("Tag name is required");
       try {
-        // Look up the tag by value (full path for nested tags) without creating it —
-        // removing a tag that doesn't exist is a no-op, not an error.
-        const result = await db.execute(
-          sql`SELECT id FROM "tag" WHERE "userId" = ${user.id} AND "value" = ${config.tagName} LIMIT 1`
-        );
-        const tagId = result.rows?.[0]?.id as string | undefined;
-        if (!tagId) {
+        // Look up the tag via Immich's API (same source of truth the "tag"
+        // action creates/gets from) without creating it — removing a tag
+        // that doesn't exist is a no-op, not an error.
+        const tags = await immichFetch("/tags", "GET", undefined, user);
+        const tag = Array.isArray(tags) ? tags.find((t: any) => t.value === config.tagName) : undefined;
+        if (!tag) {
           return { action: "remove_tag", assetsProcessed: 0 };
         }
-        await immichFetch(`/tags/${tagId}/assets`, "DELETE", { ids: assetIds }, user);
+        await immichFetch(`/tags/${tag.id}/assets`, "DELETE", { ids: assetIds }, user);
         return { action: "remove_tag", assetsProcessed: assetIds.length };
       } catch (e: any) {
         return { action: "remove_tag", assetsProcessed: 0, error: e.message };
