@@ -1,4 +1,4 @@
-import { ADD_ASSETS_ALBUMS_PATH, ALBUM_ASSETS_PATH, ALBUM_INFO_PATH, ALBUM_PEOPLE_PATH, CREATE_ALBUM_PATH, DELETE_ALBUMS_PATH, LIST_ALBUMS_PATH, LIST_POTENTIAL_ALBUMS_ASSETS_PATH, LIST_POTENTIAL_ALBUMS_DATES_PATH, LIST_POTENTIAL_TRIPS_PATH, LIST_POTENTIAL_TRIP_ASSETS_PATH, MERGE_ALBUMS_PATH, SHARE_ALBUMS_PATH } from "@/config/routes";
+import { ADD_ASSETS_ALBUMS_PATH, ALBUM_ASSETS_PATH, ALBUM_INFO_PATH, ALBUM_PEOPLE_PATH, CREATE_ALBUM_PATH, DELETE_ALBUMS_PATH, LIST_ALBUMS_PATH, LIST_POTENTIAL_ALBUMS_ASSETS_PATH, LIST_POTENTIAL_ALBUMS_DATES_PATH, MERGE_ALBUMS_PATH, SHARE_ALBUMS_PATH } from "@/config/routes";
 import { cleanUpAsset } from "@/helpers/asset.helper";
 import API from "@/lib/api";
 import { IAlbumCreate } from "@/types/album";
@@ -47,7 +47,7 @@ export interface IPotentialTripsResponse {
 }
 
 export const listPotentialTrips = async (filters?: IPotentialTripsFilters): Promise<IPotentialTripsResponse> => {
-  return API.get(LIST_POTENTIAL_TRIPS_PATH, filters);
+  return API.get(LIST_POTENTIAL_ALBUMS_DATES_PATH, { ...filters, groupBy: "trip" });
 }
 
 export const listPotentialTripAssets = async (
@@ -55,9 +55,9 @@ export const listPotentialTripAssets = async (
   endDate: string,
   city?: string | null,
 ): Promise<IAsset[]> => {
-  const params: Record<string, string> = { startDate, endDate };
+  const params: Record<string, string> = { startDate, endDate, groupBy: "trip" };
   if (city) params.city = city;
-  return API.get(LIST_POTENTIAL_TRIP_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
+  return API.get(LIST_POTENTIAL_ALBUMS_ASSETS_PATH, params).then((assets) => assets.map(cleanUpAsset));
 }
 
 export const listAlbums = async (filters?: { sortBy?: string, sortOrder?: string }) => {
