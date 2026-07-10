@@ -56,6 +56,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Ente videos are encrypted — full decryption for preview is too expensive
+    if (params.platform === "ente") {
+      return respondWithError(res, 501, "Video preview is not available for Ente imports");
+    }
+
     let targetUrl: string;
     let fetchHeaders: Record<string, string>;
 
