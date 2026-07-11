@@ -85,7 +85,7 @@ export default async function handler(
     .leftJoin(assetFaces, eq(assets.id, assetFaces.assetId))
     .leftJoin(person, and(eq(assetFaces.personId, person.id), eq(person.isHidden, false)))
     .where(eq(albumUsers.userId, currentUser.id))
-    .groupBy(albums.id, albumUsers.userId)
+    .groupBy(albums.id, albumUsers.userId, albumUsers.role)
     .orderBy(desc(albums.createdAt));
   
   const sortedAlbums = sortAlbums(dbAlbums as IAlbum[], sortBy, sortOrder);
