@@ -3,6 +3,8 @@ import { db } from "@/config/db";
 import { workflows, workflowNodes, workflowEdges, workflowRuns, workflowProcessedAssets } from "@/db/schema/workflows.schema";
 import { assets } from "@/schema/assets.schema";
 import { exif } from "@/schema";
+import { person } from "@/schema/person.schema";
+import { assetFaces } from "@/schema/assetFaces.schema";
 import { eq, and, desc, gt, gte, isNull, inArray, sql, ne, SQL } from "drizzle-orm";
 import { buildConditions } from "./conditionBuilder";
 import { executeAction } from "./actionExecutor";
@@ -115,7 +117,7 @@ async function resolveAssetTrigger(
 
   // Get already-processed assets for this workflow
   let processedMap: Map<string, Date> | null = null;
-  if (subType === "new_asset" || subType === "asset_updated") {
+  if (subType === "new_asset" || subType === "asset_updated" || subType === "person_named") {
     const processed = await appDb
       .select({ assetId: workflowProcessedAssets.assetId, processedAt: workflowProcessedAssets.processedAt })
       .from(workflowProcessedAssets)
@@ -158,6 +160,35 @@ async function resolveAssetTrigger(
       })
       .map((r) => r.id);
     log(runId, `Trigger [asset_updated]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not updated since processing), ${candidateIds.length} remaining`);
+  } else if (subType === "person_named") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id, namedAt: person.updatedAt })
+        .from(assets)
+        .innerJoin(assetFaces, eq(assets.id, assetFaces.assetId))
+        .innerJoin(person, eq(assetFaces.personId, person.id))
+        .where(and(
+          ...baseConditions,
+          eq(person.ownerId, userId),
+          eq(person.isHidden, false),
+          ne(person.name, ""),
+          gte(person.updatedAt, sinceDate),
+          ...(afterId ? [gt(assets.id, afterId)] : [])
+        ))
+        .orderBy(assets.id, desc(person.updatedAt))
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    // For person_named: reprocess only if a face was (re)named after we last processed this asset
+    candidateIds = rows
+      .filter((r) => {
+        const lastProcessed = processedMap?.get(r.id);
+        if (!lastProcessed) return true; // never processed
+        if (!r.namedAt) return true;     // no timestamp (shouldn't happen given WHERE), be permissive
+        return r.namedAt > lastProcessed;
+      })
+      .map((r) => r.id);
+    log(runId, `Trigger [person_named]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not renamed since processing), ${candidateIds.length} remaining`);
   } else {
     // all_assets — no dedup
     const rows = await fetchAllBatches((afterId, limit) =>
