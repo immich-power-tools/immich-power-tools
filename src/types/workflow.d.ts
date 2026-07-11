@@ -67,6 +67,7 @@ export interface ICondition {
 export interface IManualTriggerData {}
 export interface IScheduleTriggerData { cron: string; }
 export interface IWebhookTriggerData { token: string; }
+export interface IPersonNamedTriggerData {}
 
 export interface IIfNodeData { conditions: ICondition[]; }
 export interface ISwitchCase { label: string; conditions: ICondition[]; handle: string; }

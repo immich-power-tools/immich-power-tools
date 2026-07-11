@@ -22,7 +22,7 @@ import API from "@/lib/api";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import {
   FilePlus, FileEdit, Database, GitBranch, GitFork,
-  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag,
+  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, UserCheck,
 } from "lucide-react";
 
 // ---- Annotated Node Components (read-only, with run data) ----
@@ -30,8 +30,8 @@ import {
 function AnnotatedTriggerNode({ data, selected }: NodeProps) {
   const subType = data.subType as string;
   const step = data.runStep as any;
-  const icons: Record<string, any> = { new_asset: FilePlus, asset_updated: FileEdit, all_assets: Database };
-  const labels: Record<string, string> = { new_asset: "New Asset", asset_updated: "Asset Updated", all_assets: "All Assets" };
+  const icons: Record<string, any> = { new_asset: FilePlus, asset_updated: FileEdit, all_assets: Database, person_named: UserCheck };
+  const labels: Record<string, string> = { new_asset: "New Asset", asset_updated: "Asset Updated", all_assets: "All Assets", person_named: "Person Named" };
   const Icon = icons[subType] || FilePlus;
 
   return (

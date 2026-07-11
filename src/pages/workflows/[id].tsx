@@ -404,6 +404,7 @@ function WorkflowEditorInner() {
               {subType === "new_asset" && "Selects assets created since the last successful run. On first run, uses workflow creation time."}
               {subType === "asset_updated" && "Selects assets updated since the last successful run. On first run, uses workflow creation time."}
               {subType === "all_assets" && "Selects all assets in your library. Use with caution on large libraries."}
+              {subType === "person_named" && "Selects assets whose people were named since the last successful run. On first run, uses workflow creation time."}
             </p>
             {subType !== "all_assets" && (
               <div className="space-y-1">

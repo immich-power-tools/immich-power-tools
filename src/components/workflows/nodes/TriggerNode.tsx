@@ -1,22 +1,25 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
-import { FilePlus, FileEdit, Database } from "lucide-react";
+import { FilePlus, FileEdit, Database, UserCheck } from "lucide-react";
 
 const triggerIcons: Record<string, any> = {
   new_asset: FilePlus,
   asset_updated: FileEdit,
   all_assets: Database,
+  person_named: UserCheck,
 };
 
 const triggerLabels: Record<string, string> = {
   new_asset: "New Asset",
   asset_updated: "Asset Updated",
   all_assets: "All Assets",
+  person_named: "Person Named",
 };
 
 const triggerDescriptions: Record<string, string> = {
   new_asset: "Since last run (or workflow creation)",
   asset_updated: "Since last run (or workflow creation)",
   all_assets: "Full library scan",
+  person_named: "Since last run (or workflow creation)",
 };
 
 export default function TriggerNode({ data, selected }: NodeProps) {
