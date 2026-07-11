@@ -16,12 +16,13 @@ Immich's `asset_face` table has no timestamp columns (confirmed: `id`, `assetId`
 
 ### Engine (`src/lib/workflow/engine.ts`)
 
-New branch in `resolveAssetTrigger`, following the exact pattern `asset_updated` already uses (per-row driving timestamp, compared against `workflowProcessedAssets` to decide what's genuinely new):
+New branch in `resolveAssetTrigger`, following the exact pattern `asset_updated` already uses (per-row driving timestamp, compared against `workflowProcessedAssets` to decide what's genuinely new). Uses `selectDistinctOn` — mirroring all three sibling trigger branches — with `ORDER BY assets.id, desc(person.updatedAt)` so each asset row carries the most-recent naming timestamp among its named faces:
 
 ```ts
 } else if (subType === "person_named") {
   const rows = await fetchAllBatches((afterId, limit) =>
-    db.select({ id: assets.id, namedAt: max(person.updatedAt) })
+    db
+      .selectDistinctOn([assets.id], { id: assets.id, namedAt: person.updatedAt })
       .from(assets)
       .innerJoin(assetFaces, eq(assets.id, assetFaces.assetId))
       .innerJoin(person, eq(assetFaces.personId, person.id))
@@ -29,12 +30,11 @@ New branch in `resolveAssetTrigger`, following the exact pattern `asset_updated`
         ...baseConditions,
         eq(person.ownerId, userId),
         eq(person.isHidden, false),
-        ne(person.name, ''),
+        ne(person.name, ""),
         gte(person.updatedAt, sinceDate),
         ...(afterId ? [gt(assets.id, afterId)] : [])
       ))
-      .groupBy(assets.id)
-      .orderBy(assets.id)
+      .orderBy(assets.id, desc(person.updatedAt))
       .limit(limit)
   );
   const totalCandidates = rows.length;
@@ -42,6 +42,7 @@ New branch in `resolveAssetTrigger`, following the exact pattern `asset_updated`
     .filter((r) => {
       const lastProcessed = processedMap?.get(r.id);
       if (!lastProcessed) return true;
+      if (!r.namedAt) return true;
       return r.namedAt > lastProcessed;
     })
     .map((r) => r.id);
@@ -51,7 +52,7 @@ New branch in `resolveAssetTrigger`, following the exact pattern `asset_updated`
 
 Also add `"person_named"` to the condition that builds `processedMap` (currently gated to `subType === "new_asset" || subType === "asset_updated"`).
 
-`max(person.updatedAt)` handles assets with multiple named faces — the most recent naming event becomes the asset's driving timestamp for dedup purposes.
+The `DISTINCT ON (assets.id)` with `ORDER BY assets.id, desc(person.updatedAt)` handles assets with multiple named faces — the most recent naming event becomes the asset's `namedAt` driving timestamp for dedup purposes. Keyset pagination on `assets.id` (via `fetchAllBatches`) remains valid because `assets.id` is the leading `ORDER BY` / `DISTINCT ON` column.
 
 ### Types (`src/types/workflow.d.ts`)
 
@@ -61,17 +62,33 @@ export interface IPersonNamedTriggerData {}
 
 Parameterless, matching `IManualTriggerData`.
 
-### UI (`src/components/workflows/NodePalette.tsx`)
+### UI (4 files maintain trigger subType maps)
 
-One new palette entry:
+The trigger subtype is registered in four UI locations, each of which needs the new `person_named` entry:
+
+1. **`src/components/workflows/NodePalette.tsx`** — one new palette entry (draggable source):
+   ```ts
+   { type: "trigger", subType: "person_named", label: "Person Named", icon: UserCheck, color: "text-green-500" },
+   ```
+   Add `UserCheck` to the `lucide-react` import.
+
+2. **`src/components/workflows/nodes/TriggerNode.tsx`** — graph node rendering. Add `person_named` to `triggerIcons` (`UserCheck`), `triggerLabels` (`"Person Named"`), and `triggerDescriptions` (`"Since last run (or workflow creation)"`). Add `UserCheck` to the `lucide-react` import.
+
+3. **`src/pages/workflows/[id]/runs/[runId].tsx`** — run-history node rendering. Add `person_named` to the local `icons` (`UserCheck`) and `labels` (`"Person Named"`) maps. Add `UserCheck` to the second `lucide-react` import block.
+
+4. **`src/pages/workflows/[id].tsx`** — inspector panel description text. Add a line: `{subType === "person_named" && "Selects assets whose people were named since the last successful run. On first run, uses workflow creation time."}`. No change needed to the lookback-buffer block (`subType !== "all_assets"` already renders it for `person_named`, which is correct — this trigger is incremental and uses the lookback buffer).
+
+### Type declaration (`src/types/workflow.d.ts`)
 
 ```ts
-{ type: "trigger", subType: "person_named", label: "Person Named", icon: UserCheck, color: "text-green-500" },
+export interface IPersonNamedTriggerData {}
 ```
+
+Parameterless, matching `IManualTriggerData`. Note: trigger subtypes are dispatched by runtime string, not a TypeScript discriminated union, so this interface is documentation-only (consistent with the existing, partly-vestigial trigger data interfaces).
 
 ### Imports needed
 
-`max`, `ne` from `drizzle-orm` (already used elsewhere in `engine.ts`); `person` and `assetFaces` schema imports (not currently imported in `engine.ts` — `conditionBuilder.ts` already imports both, same pattern).
+In `engine.ts`: `ne`, `desc`, `gt`, `gte` from `drizzle-orm` are already imported; add `person` from `@/schema/person.schema` and `assetFaces` from `@/schema/assetFaces.schema` (not currently imported in `engine.ts` — `actionExecutor.ts` already imports both with this exact path/style). No new `drizzle-orm` import needed (the `selectDistinctOn` approach avoids `max`).
 
 ## Known limitations
 
