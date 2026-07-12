@@ -410,7 +410,7 @@ function WorkflowEditorInner() {
               {subType === "rating_changed" && "Selects assets given a star rating since the last successful run. Fires once per asset; a later change to the rating value won't re-fire."}
               {subType === "tag_added" && "Selects tagged assets. On first run this includes every currently-tagged asset; afterwards, only newly-tagged assets."}
             </p>
-            {subType !== "all_assets" && (
+            {subType !== "all_assets" && subType !== "tag_added" && (
               <div className="space-y-1">
                 <Label className="text-xs">Lookback Buffer</Label>
                 <div className="flex items-center gap-2">
