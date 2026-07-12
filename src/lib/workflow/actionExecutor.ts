@@ -290,7 +290,7 @@ export async function executeHttpRequest(
   const timeoutMs = (config.timeoutSeconds && config.timeoutSeconds > 0 ? config.timeoutSeconds : 10) * 1000;
   const concurrency = 5;
   const headers: { key: string; value: string }[] = Array.isArray(config.headers) ? config.headers : [];
-  const method = String(config.method || "GET").toUpperCase();
+  const method = String(config.method || "POST").toUpperCase();
   const assetData = await loadAssetData(assetIds);
 
   let succeeded = 0;
