@@ -15,9 +15,12 @@ interface LazyGridImageProps {
   onSelect?: (event: React.MouseEvent) => void;
   /** When true, dim non-selected siblings so the selected set is visible in dense grids. */
   selectionMode?: boolean;
+  onHover?: (id: string | null) => void;
+  /** Cyan flash ring — e.g. when this photo's map pin was clicked. */
+  highlighted?: boolean;
 }
 
-export default function LazyGridImage({ imageProps, photo, width, height, selectable, onSelect, selectionMode = false }: LazyGridImageProps) {
+export default function LazyGridImage({ imageProps, photo, width, height, selectable, onSelect, selectionMode = false, onHover, highlighted = false }: LazyGridImageProps) {
   const [isVisible, setIsVisible] = React.useState(false)
   const imageRef = React.useRef<HTMLDivElement>(null)
 
@@ -46,10 +49,18 @@ export default function LazyGridImage({ imageProps, photo, width, height, select
   }, [])
 
   if (!isVisible) return (
-    <div style={{ height, width }} ref={imageRef} />
+    // data-asset-id even on the placeholder so scroll-to-photo (from a map
+    // pin click) can find photos that haven't lazy-loaded yet.
+    <div style={{ height, width }} ref={imageRef} data-asset-id={photo.id} />
   )
 
   const dim = selectionMode && !photo.isSelected ? 'opacity-60' : '';
+
+  const ring = highlighted
+    ? 'ring-4 ring-cyan-400 ring-inset'
+    : photo.isSelected
+      ? 'ring-4 ring-blue-500 ring-inset'
+      : '';
 
   return (
     <div
@@ -58,7 +69,10 @@ export default function LazyGridImage({ imageProps, photo, width, height, select
         width,
         height,
       }}
-      className={`group ${photo.isSelected ? 'ring-4 ring-blue-500 ring-inset' : ''} ${dim}`.trim()}
+      data-asset-id={photo.id}
+      onMouseEnter={onHover ? () => onHover(photo.id) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
+      className={`group ${ring} ${dim}`.trim()}
     >
       <img {...imageProps} alt={imageProps.alt || ""} title="" style={{ ...imageProps.style, width, height, objectFit: 'cover' }} />
       {photo.isVideo && <div className="absolute bottom-2 right-2 bg-black/50 p-1 rounded-full flex items-center gap-1">

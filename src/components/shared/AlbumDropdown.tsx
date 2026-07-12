@@ -36,22 +36,25 @@ export default function AlbumDropdown({ albumIds, onChange }: IAlbumDropdownProp
 
   return (
     <div>
-    <Select 
+    <Select
       onValueChange={(value) => {
-        if (value) {
+        // Radix Select items can't have an empty value — "__all__" stands in
+        // for "no album filter" so the selection is clearable.
+        if (value && value !== "__all__") {
           setSelectedAlbumIds([value])
           onChange([value])
         } else {
           setSelectedAlbumIds([])
           onChange([])
         }
-      }} 
-      value={selectedAlbumIds?.[0] ?? ""}
-    >   
+      }}
+      value={selectedAlbumIds?.[0] ?? "__all__"}
+    >
       <SelectTrigger className='!p-2'>
         <SelectValue placeholder={'Select album'} />
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value="__all__">All albums</SelectItem>
         {albums.map((album) => (
           <SelectItem key={album.id} value={album.id}>{album.albumName}</SelectItem>
         ))}

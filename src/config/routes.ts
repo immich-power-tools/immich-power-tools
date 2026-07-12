@@ -48,6 +48,8 @@ export const ASSET_VIDEO_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/asset/vi
 export const ASSET_GEO_HEATMAP_PATH = BASE_API_ENDPOINT + "/assets/geo-heatmap";
 export const LIST_EMPTY_VIDEOS_PATH = BASE_API_ENDPOINT + "/assets/empty-videos";
 export const LIST_ORPHAN_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/orphan-finder";
+export const LIST_LOCATION_MANAGER_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/location-manager-assets";
+export const ASSET_DETAIL_PATH = (id: string) => BASE_API_ENDPOINT + "/assets/" + id + "/detail";
 
 
 
@@ -58,6 +60,9 @@ export const ASSET_SHARE_THUMBNAIL_PATH = (
 // Location
 
 export const SEARCH_PLACES_PATH = BASE_PROXY_ENDPOINT + "/search/places";
+// GPS Manager per-user saved locations (app.db, owner-scoped).
+export const LOCATION_FAVORITES_PATH = BASE_API_ENDPOINT + "/location-favorites";
+export const LOCATION_FAVORITE_PATH = (id: string) => BASE_API_ENDPOINT + "/location-favorites/" + id;
 
 //Analytics
 

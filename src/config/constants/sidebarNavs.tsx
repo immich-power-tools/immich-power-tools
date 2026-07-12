@@ -30,6 +30,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { title: "Empty Videos", link: "/assets/empty-videos", icon: <Video className="h-4 w-4" /> },
       { title: "Bulk Duplicate Finder", link: "/assets/bulk-duplicate-finder", icon: <Copy className="h-4 w-4" /> },
       { title: "Orphan Finder", link: "/assets/orphan-finder", icon: <PackageSearch className="h-4 w-4" /> },
+      { title: "GPS Manager", link: "/assets/location-manager", icon: <MapPin className="h-4 w-4" />, badge: "Beta" },
     ],
   },
   {

@@ -36,6 +36,20 @@
       "when": 1775574030092,
       "tag": "0004_equal_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783709971469,
+      "tag": "0005_happy_nico_minoru",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783715235034,
+      "tag": "0006_legal_shooting_star",
+      "breakpoints": true
     }
   ]
 }
