@@ -9,8 +9,8 @@ import PeopleDropdown from '@/components/shared/PeopleDropdown';
 import { Button } from '@/components/ui/button';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the LeafletHeatMap component to avoid SSR issues
-const LeafletHeatMap = dynamic(() => import('../../components/LeafletHeatMap'), {
+// Dynamically import the MapLibreHeatMap component to avoid SSR issues
+const MapLibreHeatMap = dynamic(() => import('../../components/MapLibreHeatMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full flex items-center justify-center">Loading map...</div>
 });
@@ -48,10 +48,12 @@ export default function GeoHeatmap() {
                 })
               }} 
             />
-            <Button 
-              variant="default" 
-              size="sm" 
-              disabled={Object.keys(filters).length === 0 || isLoading}
+            <Button
+              variant="default"
+              size="sm"
+              // Check values, not key presence — deselecting a dropdown leaves
+              // its key behind as undefined, which kept Clear lit with no filter.
+              disabled={(!filters.albumIds && !filters.peopleIds) || isLoading}
               onClick={() => setFilters({})}>
               <X size={16} /> Clear
             </Button>
@@ -59,9 +61,9 @@ export default function GeoHeatmap() {
         } 
       />
       <div className='h-full w-full'>
-        <LeafletHeatMap 
-          filters={filters} 
-          isDarkMode={theme === 'dark'} 
+        <MapLibreHeatMap
+          filters={filters}
+          isDarkMode={theme === 'dark'}
           onLoadingChange={setIsLoading}
         />
       </div>
