@@ -2,7 +2,7 @@ import { appDb } from "@/db";
 import { db } from "@/config/db";
 import { workflows, workflowNodes, workflowEdges, workflowRuns, workflowProcessedAssets } from "@/db/schema/workflows.schema";
 import { assets } from "@/schema/assets.schema";
-import { exif } from "@/schema";
+import { exif, albumsAssetsAssets } from "@/schema";
 import { person } from "@/schema/person.schema";
 import { assetFaces } from "@/schema/assetFaces.schema";
 import { eq, and, desc, gt, gte, isNull, inArray, sql, ne, SQL } from "drizzle-orm";
@@ -117,7 +117,7 @@ async function resolveAssetTrigger(
 
   // Get already-processed assets for this workflow
   let processedMap: Map<string, Date> | null = null;
-  if (subType === "new_asset" || subType === "asset_updated" || subType === "person_named") {
+  if (subType === "new_asset" || subType === "asset_updated" || subType === "person_named" || subType === "album_added" || subType === "favorited" || subType === "rating_changed" || subType === "tag_added") {
     const processed = await appDb
       .select({ assetId: workflowProcessedAssets.assetId, processedAt: workflowProcessedAssets.processedAt })
       .from(workflowProcessedAssets)
@@ -189,6 +189,56 @@ async function resolveAssetTrigger(
       })
       .map((r) => r.id);
     log(runId, `Trigger [person_named]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not renamed since processing), ${candidateIds.length} remaining`);
+  } else if (subType === "album_added") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .innerJoin(albumsAssetsAssets, eq(assets.id, albumsAssetsAssets.assetId))
+        .where(and(...baseConditions, gte(albumsAssetsAssets.createdAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [album_added]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "favorited") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, eq(assets.isFavorite, true), gte(assets.updatedAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [favorited]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "rating_changed") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .innerJoin(exif, eq(assets.id, exif.assetId))
+        .where(and(...baseConditions, gt(exif.rating, 0), gte(exif.updatedAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [rating_changed]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "tag_added") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id})`, ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [tag_added]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
   } else {
     // all_assets — no dedup
     const rows = await fetchAllBatches((afterId, limit) =>
