@@ -27,6 +27,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
+  variable: "Variable",
 };
 
 const matchLabels: Record<string, string> = {
