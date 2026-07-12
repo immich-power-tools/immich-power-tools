@@ -18,7 +18,7 @@ export function getPath(obj: any, path?: string): any {
 // as "". Objects are JSON-stringified.
 export function resolveTemplateString(template: string, valueBag: Record<string, any>): string {
   if (!template) return template;
-  return template.replace(/\{([^}]+)\}/g, (_match, token) => {
+  return template.replace(/\{([a-zA-Z_][\w.]*)\}/g, (_match, token) => {
     const trimmed = String(token).trim();
     const dot = trimmed.indexOf(".");
     const name = dot === -1 ? trimmed : trimmed.slice(0, dot);
