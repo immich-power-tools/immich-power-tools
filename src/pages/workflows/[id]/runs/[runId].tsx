@@ -22,7 +22,7 @@ import API from "@/lib/api";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import {
   FilePlus, FileEdit, Database, GitBranch, GitFork,
-  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Tags, Star, UserCheck,
+  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Tags, Star, UserCheck, Webhook,
 } from "lucide-react";
 
 // ---- Annotated Node Components (read-only, with run data) ----
@@ -135,11 +135,11 @@ function AnnotatedActionNode({ data }: NodeProps) {
   const step = data.runStep as any;
   const icons: Record<string, any> = {
     create_album: FolderPlus, add_to_album: FolderInput, remove_from_album: FolderMinus,
-    favorite: Heart, unfavorite: HeartOff, archive: Archive, tag: Tag, remove_tag: Tag,
+    favorite: Heart, unfavorite: HeartOff, archive: Archive, tag: Tag, remove_tag: Tag, http_request: Webhook,
   };
   const labels: Record<string, string> = {
     create_album: "Create Album", add_to_album: "Add to Album", remove_from_album: "Remove from Album",
-    favorite: "Favorite", unfavorite: "Unfavorite", archive: "Archive", tag: "Add Tag", remove_tag: "Remove Tag",
+    favorite: "Favorite", unfavorite: "Unfavorite", archive: "Archive", tag: "Add Tag", remove_tag: "Remove Tag", http_request: "HTTP Call",
   };
   const Icon = icons[subType] || FolderPlus;
   const isDryRun = step?.detail?.includes("DRY RUN");
