@@ -9,7 +9,7 @@ export function evaluateVariableCondition(c: ICondition, ctx: Record<string, any
     case "exists": return v !== undefined && v !== null;
     case "not_exists": return v === undefined || v === null;
     case "equals": return v != null && String(v) === String(c.value);
-    case "not_equals": return String(v) !== String(c.value);
+    case "not_equals": return v != null && String(v) !== String(c.value);
     case "contains": return v != null && String(v).includes(String(c.value ?? ""));
     case "greater_than": return v != null && Number(v) > Number(c.value);
     case "less_than": return v != null && Number(v) < Number(c.value);
