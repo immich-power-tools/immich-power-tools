@@ -405,6 +405,10 @@ function WorkflowEditorInner() {
               {subType === "asset_updated" && "Selects assets updated since the last successful run. On first run, uses workflow creation time."}
               {subType === "all_assets" && "Selects all assets in your library. Use with caution on large libraries."}
               {subType === "person_named" && "Selects assets whose people were named since the last successful run. On first run, uses workflow creation time."}
+              {subType === "album_added" && "Selects assets added to any album since the last successful run. On first run, uses workflow creation time."}
+              {subType === "favorited" && "Selects assets favorited since the last successful run. On first run, uses workflow creation time."}
+              {subType === "rating_changed" && "Selects assets given a star rating since the last successful run. Fires once per asset; a later change to the rating value won't re-fire."}
+              {subType === "tag_added" && "Selects tagged assets. On first run this includes every currently-tagged asset; afterwards, only newly-tagged assets."}
             </p>
             {subType !== "all_assets" && (
               <div className="space-y-1">

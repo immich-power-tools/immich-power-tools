@@ -1,4 +1,4 @@
-import { FilePlus, FileEdit, Database, GitBranch, GitFork, FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, UserCheck } from "lucide-react";
+import { FilePlus, FileEdit, Database, GitBranch, GitFork, FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Tags, Star, UserCheck } from "lucide-react";
 
 interface PaletteItem {
   type: string;
@@ -13,6 +13,10 @@ const assetTriggerItems: PaletteItem[] = [
   { type: "trigger", subType: "asset_updated", label: "Asset Updated", icon: FileEdit, color: "text-green-500" },
   { type: "trigger", subType: "all_assets", label: "All Assets", icon: Database, color: "text-green-500" },
   { type: "trigger", subType: "person_named", label: "Person Named", icon: UserCheck, color: "text-green-500" },
+  { type: "trigger", subType: "album_added", label: "Added to Album", icon: FolderInput, color: "text-green-500" },
+  { type: "trigger", subType: "favorited", label: "Favorited", icon: Heart, color: "text-green-500" },
+  { type: "trigger", subType: "rating_changed", label: "Rating Changed", icon: Star, color: "text-green-500" },
+  { type: "trigger", subType: "tag_added", label: "Tag Added", icon: Tags, color: "text-green-500" },
 ];
 
 const logicItems: PaletteItem[] = [
