@@ -138,6 +138,7 @@ export interface IMissingOriginalAsset extends IAsset {
 export interface IMissingOriginalsScanResponse {
   enabled: boolean;
   totalChecked: number;
+  totalEligibleAssets: number;
   missingCount: number;
   missingPercent: number;
   safetyPercent: number;

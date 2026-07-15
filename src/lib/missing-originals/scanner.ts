@@ -16,7 +16,7 @@ export interface MissingOriginalAsset {
   originalPath: string;
   mappedPath: string;
   isFavorite: boolean;
-  duration: string | null;
+  duration: string | number | null;
   originalFileName: string;
   deletedAt: Date | null;
   localDateTime: Date;
@@ -32,6 +32,7 @@ export interface MissingOriginalAsset {
 export interface MissingOriginalsScanResult {
   enabled: boolean;
   totalChecked: number;
+  totalEligibleAssets: number;
   missingCount: number;
   missingPercent: number;
   safetyPercent: number;
@@ -90,6 +91,7 @@ const buildEmptyScanResult = ({
 }): MissingOriginalsScanResult => ({
   enabled: config.enabled,
   totalChecked: 0,
+  totalEligibleAssets: 0,
   missingCount: 0,
   missingPercent: 0,
   safetyPercent: 0,
@@ -214,10 +216,21 @@ export const scanMissingOriginals = async ({
   let totalChecked = 0;
   const missing: MissingOriginalAsset[] = [];
 
-  while (true) {
-    const idFilter = onlyIds?.length ? inArray(assets.id, onlyIds) : undefined;
+  const chunks = onlyIds?.length
+    ? Array.from({ length: Math.ceil(onlyIds.length / BATCH_SIZE) }, (_, i) =>
+        onlyIds.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE)
+      )
+    : null;
 
-    const dbAssets = await db
+  while (true) {
+    const currentChunk = chunks ? chunks[page] : null;
+    if (chunks && !currentChunk) {
+      break;
+    }
+
+    const idFilter = currentChunk ? inArray(assets.id, currentChunk) : undefined;
+
+    const dbAssets = (await db
       .selectDistinctOn([assets.id], {
         id: assets.id,
         ownerId: assets.ownerId,
@@ -254,31 +267,35 @@ export const scanMissingOriginals = async ({
       )
       .orderBy(assets.id, asc(assets.localDateTime))
       .limit(BATCH_SIZE)
-      .offset(page * BATCH_SIZE);
+      .offset(chunks ? 0 : page * BATCH_SIZE)) as Omit<MissingOriginalAsset, "mappedPath">[];
 
     if (dbAssets.length === 0) {
-      break;
-    }
-
-    totalChecked += dbAssets.length;
-
-    const checkedBatch = await mapWithConcurrency(dbAssets, config.concurrency, async (asset) => {
-      const mappedPath = mapOriginalPathToScanPath({
-        originalPath: asset.originalPath,
-        dbPrefix,
-        scanRoot: config.scanRoot,
-      });
-      const exists = await fileExists(mappedPath);
-      return { asset, mappedPath, exists };
-    });
-
-    for (const item of checkedBatch) {
-      if (!item.exists) {
-        missing.push(normalizeAsset(item.asset, item.mappedPath));
+      if (!chunks) {
+        break;
       }
     }
 
-    if (onlyIds?.length || dbAssets.length < BATCH_SIZE) {
+    if (dbAssets.length > 0) {
+      totalChecked += dbAssets.length;
+
+      const checkedBatch = await mapWithConcurrency(dbAssets, config.concurrency, async (asset) => {
+        const mappedPath = mapOriginalPathToScanPath({
+          originalPath: asset.originalPath,
+          dbPrefix,
+          scanRoot: config.scanRoot,
+        });
+        const exists = await fileExists(mappedPath);
+        return { asset, mappedPath, exists };
+      });
+
+      for (const item of checkedBatch) {
+        if (!item.exists) {
+          missing.push(normalizeAsset(item.asset, item.mappedPath));
+        }
+      }
+    }
+
+    if (!chunks && dbAssets.length < BATCH_SIZE) {
       break;
     }
 
@@ -291,6 +308,7 @@ export const scanMissingOriginals = async ({
   return {
     enabled: config.enabled,
     totalChecked,
+    totalEligibleAssets,
     missingCount: missing.length,
     missingPercent,
     safetyPercent,

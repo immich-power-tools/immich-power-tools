@@ -133,7 +133,7 @@ export default function MissingOriginalsPage() {
       sortOrder: "asc",
     },
     updateContext: (newConfig: Partial<IPhotoSelectionContext>) => {
-      setContextState((prevState) => ({
+      setContextState((prevState: IPhotoSelectionContext) => ({
         ...prevState,
         ...newConfig,
         config: newConfig.config ? { ...prevState.config, ...newConfig.config } : prevState.config,
@@ -143,18 +143,19 @@ export default function MissingOriginalsPage() {
 
   const missingAssets = scanResult?.missing ?? [];
   const detailAsset = useMemo(
-    () => missingAssets.find((asset) => asset.id === detailAssetId) ?? null,
+    () => missingAssets.find((asset: IMissingOriginalAsset) => asset.id === detailAssetId) ?? null,
     [detailAssetId, missingAssets]
   );
   const filteredMissingAssets = useMemo(
     () =>
       missingAssets.filter(
-        (asset) => assetMatchesTypeFilter(asset, typeFilter) && assetMatchesSearch(asset, search)
+        (asset: IMissingOriginalAsset) =>
+          assetMatchesTypeFilter(asset, typeFilter) && assetMatchesSearch(asset, search)
       ),
     [missingAssets, search, typeFilter]
   );
   const selectedAssets = useMemo(
-    () => missingAssets.filter((asset) => contextState.selectedIds.includes(asset.id)),
+    () => missingAssets.filter((asset: IMissingOriginalAsset) => contextState.selectedIds.includes(asset.id)),
     [missingAssets, contextState.selectedIds]
   );
   const missingOriginalColumns = useMemo<ColumnDef<IMissingOriginalAsset>[]>(
@@ -316,11 +317,11 @@ export default function MissingOriginalsPage() {
 
   const removeTrashedAssets = (ids: string[]) => {
     const idSet = new Set(ids);
-    const remaining = missingAssets.filter((asset) => !idSet.has(asset.id));
+    const remaining = missingAssets.filter((asset: IMissingOriginalAsset) => !idSet.has(asset.id));
 
     if (scanResult) {
       const missingPercent = scanResult.totalChecked === 0 ? 0 : (remaining.length / scanResult.totalChecked) * 100;
-      const safetyPercent = scanResult.totalChecked === 0 ? 0 : (remaining.length / scanResult.totalChecked) * 100;
+      const safetyPercent = scanResult.totalEligibleAssets === 0 ? 0 : (remaining.length / scanResult.totalEligibleAssets) * 100;
 
       setScanResult({
         ...scanResult,
@@ -347,14 +348,14 @@ export default function MissingOriginalsPage() {
   };
 
   const handleTableSelectionChange = useCallback((selectedIds: string[]) => {
-    setContextState((prevState) => ({
+    setContextState((prevState: IPhotoSelectionContext) => ({
       ...prevState,
       selectedIds,
     }));
   }, []);
 
   const handleSelectAll = () => {
-    const selectedIds = missingAssets.map((asset) => asset.id);
+    const selectedIds = missingAssets.map((asset: IMissingOriginalAsset) => asset.id);
     contextState.updateContext({ selectedIds });
     dataTableRef.current?.selectRows(selectedIds);
   };
@@ -432,7 +433,7 @@ export default function MissingOriginalsPage() {
               ref={dataTableRef}
               columns={missingOriginalColumns}
               data={filteredMissingAssets}
-              getRowId={(row) => row.id}
+              getRowId={(row: IMissingOriginalAsset) => row.id}
               onRowSelectionChange={handleTableSelectionChange}
             />
           ) : filteredMissingAssets.length > 0 ? (
@@ -515,7 +516,7 @@ export default function MissingOriginalsPage() {
                 <AlertDialog
                   title={`Move all ${missingAssets.length} missing asset record(s) to Trash?`}
                   description="This re-checks each file first, then moves only confirmed missing records to Immich Trash. It does not hard-delete files or database rows."
-                  onConfirm={() => trashAssets(missingAssets.map((asset) => asset.id))}
+                  onConfirm={() => trashAssets(missingAssets.map((asset: IMissingOriginalAsset) => asset.id))}
                   disabled={scanResult?.unsafeToTrash}
                 >
                   <Button variant="outline" size="sm" disabled={scanResult?.unsafeToTrash}>
@@ -532,7 +533,7 @@ export default function MissingOriginalsPage() {
           </div>
         }
       />
-      <PhotoSelectionContext.Provider value={{ ...contextState, updateContext: contextState.updateContext }}>
+      <PhotoSelectionContext.Provider value={contextState}>
         {renderContent()}
         {detailAsset && (
           <div className="fixed inset-0 z-50 flex bg-black/95">
