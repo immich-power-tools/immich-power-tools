@@ -381,6 +381,12 @@ export default function CullPhotosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy]);
 
+  // O(1) lookup for the grid's per-thumbnail badge overlay — `assets.find`
+  // inside the extras renderer was O(n) per photo, O(n²) per grid render.
+  // Declared above the keyboard effect so the bulk shortcuts can read the
+  // selection's current state.
+  const assetsById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
+
   // --- keyboard ---
   const viewerAsset = viewerIndex !== null ? assets[viewerIndex] ?? null : null;
 
@@ -427,8 +433,9 @@ export default function CullPhotosPage() {
       } else if (keyMatches(e, shortcuts.pick)) {
         e.preventDefault();
         // Toggle is only unambiguous for the single open photo; a bulk grid
-        // selection just gets marked picked (same convention as Reviewed/
-        // Favorite below) — Unflag is still there for bulk clearing.
+        // selection just gets marked picked — Unflag (U) is the bulk clear,
+        // which is why Pick/Reject don't toggle off the way Reviewed and
+        // Favorite (which have no "un-" key) do.
         flagAssets(targetIds, viewerAsset && viewerAsset.picked ? null : "pick");
       } else if (keyMatches(e, shortcuts.reject)) {
         e.preventDefault();
@@ -438,15 +445,25 @@ export default function CullPhotosPage() {
         flagAssets(targetIds, null);
       } else if (keyMatches(e, shortcuts.reviewed)) {
         e.preventDefault();
-        reviewAssets(targetIds, !(viewerAsset && viewerAsset.reviewed));
+        // Toggle: in the viewer, flip the open photo; for a grid selection,
+        // un-review only if every selected photo is already reviewed, else
+        // mark them all reviewed. (Unlike Pick/Reject, Reviewed has no
+        // separate "un-" key, so the shortcut must toggle both ways.)
+        const nextReviewed = viewerAsset
+          ? !viewerAsset.reviewed
+          : !selectedIds.every((id) => assetsById.get(id)?.reviewed);
+        reviewAssets(targetIds, nextReviewed);
       } else if (keyMatches(e, shortcuts.favorite)) {
         e.preventDefault();
-        favoriteAssets(targetIds, !(viewerAsset && viewerAsset.isFavorite));
+        const nextFavorite = viewerAsset
+          ? !viewerAsset.isFavorite
+          : !selectedIds.every((id) => assetsById.get(id)?.isFavorite);
+        favoriteAssets(targetIds, nextFavorite);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [viewerAsset, viewerIndex, selectedIds, assets.length, shortcuts, shortcutsOpen, rateAssets, flagAssets, reviewAssets, favoriteAssets]);
+  }, [viewerAsset, viewerIndex, selectedIds, assets.length, assetsById, shortcuts, shortcutsOpen, rateAssets, flagAssets, reviewAssets, favoriteAssets]);
 
   // --- grid photos ---
   const images: AssetPhoto[] = useMemo(() => {
@@ -461,10 +478,6 @@ export default function CullPhotosPage() {
       duration: a.duration != null ? String(a.duration) : undefined,
     }));
   }, [assets, selectedIds]);
-
-  // O(1) lookup for the grid's per-thumbnail badge overlay — `assets.find`
-  // inside the extras renderer was O(n) per photo, O(n²) per grid render.
-  const assetsById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
 
   // The one rating every selected photo shares (null when mixed or unrated) —
   // lets the bulk bar's stars show the current state, so clicking the lit
