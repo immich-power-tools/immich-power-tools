@@ -8,9 +8,12 @@ import { addDays } from "date-fns";
 import { and, asc, count, desc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-// Pages of 500 keep "Location Not Set, all albums" usable even on the
-// household's largest library (32k+ missing-GPS assets).
-export const LOCATION_MANAGER_PAGE_SIZE = 500;
+// Page size lives in a client-safe constants module so the GPS Manager page
+// can share it without importing this server route. Re-exported here so
+// existing `import { LOCATION_MANAGER_PAGE_SIZE } from "./location-manager-assets"`
+// callers keep working.
+export { LOCATION_MANAGER_PAGE_SIZE } from "@/config/constants/location-manager";
+import { LOCATION_MANAGER_PAGE_SIZE } from "@/config/constants/location-manager";
 
 export default async function handler(
   req: NextApiRequest,

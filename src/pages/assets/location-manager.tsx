@@ -28,9 +28,11 @@ import PhotoSelectionContext, {
   IPhotoSelectionContext,
 } from "@/contexts/PhotoSelectionContext";
 import {
+  ILocationManagerAssetsResponse,
   listLocationManagerAssets,
   updateAssets,
 } from "@/handlers/api/asset.handler";
+import { LOCATION_MANAGER_PAGE_SIZE } from "@/config/constants/location-manager";
 import { ILocationFavorite } from "@/handlers/api/locationFavorite.handler";
 import {
   coordsEqual,
@@ -121,11 +123,19 @@ export default function LocationManager() {
   const { assets, selectedIds, updateContext } = contextState;
 
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // One page is shown at a time (replace, not append) so the DOM/marker count
+  // stays bounded by the page size no matter how large the library is. The
+  // next page is prefetched into this ref so paging forward — including the
+  // "next without GPS" button hopping across a page boundary — feels instant.
+  // Keyed by the active filter + page so a stale prefetch is never applied.
+  const prefetchRef = useRef<{ key: string; page: number; data: ILocationManagerAssetsResponse } | null>(null);
+  const filterKey = () => JSON.stringify({ albumId, gpsStatus, sortOrder, dateFrom, dateTo });
+  const pageCount = total != null ? Math.max(1, Math.ceil(total / LOCATION_MANAGER_PAGE_SIZE)) : null;
 
   // Shared clipboard + pin state (unified across grid and map controls).
   const [clipboard, setClipboard] = useState<IClipboard | null>(null);
@@ -167,54 +177,79 @@ export default function LocationManager() {
     );
   };
 
+  // Warm the next page in the background so a forward step is instant. Stored
+  // under the current filter key so a filter change invalidates it. Best
+  // effort — a failed prefetch just means the real load pays the round-trip.
+  const prefetchPage = (pageNum: number) => {
+    if (pageNum < 1) return;
+    if (pageCount != null && pageNum > pageCount) {
+      prefetchRef.current = null;
+      return;
+    }
+    const key = filterKey();
+    listLocationManagerAssets({ albumId, gpsStatus, page: pageNum, sortOrder, dateFrom, dateTo })
+      .then((data) => {
+        // Drop it if the filters changed while the request was in flight.
+        if (filterKey() === key) prefetchRef.current = { key, page: pageNum, data };
+      })
+      .catch(() => {
+        /* ignore — the on-demand load will fetch it for real */
+      });
+  };
+
+  // Load one page, replacing the current set (never appending). Returns the
+  // response so callers that need the freshly-loaded assets (the "next without
+  // GPS" hop) can act on them without waiting for a state flush. Serves from
+  // the prefetch cache when it matches, which is what makes forward paging feel
+  // instant.
+  const loadPage = async (
+    pageNum: number,
+    opts: { resetSelection?: boolean } = {}
+  ): Promise<ILocationManagerAssetsResponse | null> => {
+    const { resetSelection = true } = opts;
+    const key = filterKey();
+    const cached =
+      prefetchRef.current && prefetchRef.current.key === key && prefetchRef.current.page === pageNum
+        ? prefetchRef.current.data
+        : null;
+
+    const apply = (res: ILocationManagerAssetsResponse) => {
+      updateContext(resetSelection ? { assets: res.assets, selectedIds: [] } : { assets: res.assets });
+      setPage(pageNum);
+      setHasMore(res.hasMore);
+      // total only comes back on page 1; keep the cached count otherwise.
+      if (res.total != null) setTotal(res.total);
+      prefetchRef.current = null;
+      prefetchPage(pageNum + 1);
+    };
+
+    if (cached) {
+      apply(cached);
+      return cached;
+    }
+
+    setLoading(true);
+    try {
+      const res = await listLocationManagerAssets({ albumId, gpsStatus, page: pageNum, sortOrder, dateFrom, dateTo });
+      apply(res);
+      return res;
+    } catch {
+      toast({ title: "Error", description: "Failed to load photos", variant: "destructive" });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter change: reset to page 1 and drop any prefetch from the old filter.
   useEffect(() => {
     if (!router.isReady) return;
-    setLoading(true);
-    setPage(1);
+    prefetchRef.current = null;
+    setTotal(null);
     updateContext({ selectedIds: [], assets: [] });
-    listLocationManagerAssets({ albumId, gpsStatus, page: 1, sortOrder, dateFrom, dateTo })
-      .then(({ assets: fetched, hasMore: more, total: count }) => {
-        updateContext({ assets: fetched });
-        setHasMore(more);
-        setTotal(count ?? null);
-      })
-      .catch(() =>
-        toast({
-          title: "Error",
-          description: "Failed to load photos",
-          variant: "destructive",
-        })
-      )
-      .finally(() => setLoading(false));
+    loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, albumId, gpsStatus, sortOrder, dateFrom, dateTo]);
-
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setLoadingMore(true);
-    listLocationManagerAssets({ albumId, gpsStatus, page: nextPage, sortOrder, dateFrom, dateTo })
-      .then(({ assets: fetched, hasMore: more }) => {
-        // Dedupe by id — offset pagination can shift when writes remove
-        // items from the "Location Not Set" filter between requests.
-        setContextState((prev) => {
-          const known = new Set(prev.assets.map((a) => a.id));
-          return {
-            ...prev,
-            assets: [...prev.assets, ...fetched.filter((a) => !known.has(a.id))],
-          };
-        });
-        setPage(nextPage);
-        setHasMore(more);
-      })
-      .catch(() =>
-        toast({
-          title: "Error",
-          description: "Failed to load more photos",
-          variant: "destructive",
-        })
-      )
-      .finally(() => setLoadingMore(false));
-  };
 
   const selectedAssets = useMemo(() => {
     const selectedSet = new Set(selectedIds);
@@ -360,14 +395,19 @@ export default function LocationManager() {
         });
       }
       if (gpsStatus === "notSet") {
-        // They no longer match this filter — remove them, the same way
-        // Missing Locations clears tagged photos from its list.
-        setContextState((prev) => ({
-          ...prev,
-          assets: prev.assets.filter((a) => !idSet.has(a.id)),
-          selectedIds: [],
-        }));
+        // The photos just geotagged no longer match this filter, so the set
+        // has shrunk. Reload the current page at the same offset: the fixed
+        // ones fall off and the following photos pull up into view, keeping the
+        // page full and the offsets honest. The prefetch is now stale, so drop
+        // it first.
         setTotal((t) => (t == null ? t : Math.max(0, t - ids.length)));
+        prefetchRef.current = null;
+        const reloaded = await loadPage(page);
+        // If that was the last page and we just cleared it, the same offset now
+        // sits past the end — step back so the grid doesn't read "No photos".
+        if (reloaded && reloaded.assets.length === 0 && page > 1) {
+          await loadPage(page - 1);
+        }
       } else {
         setContextState((prev) => ({
           ...prev,
@@ -520,39 +560,112 @@ export default function LocationManager() {
     setFlyTo({ coords, zoom: 14, ts: Date.now() });
   };
 
-  // Map pin clicked → scroll the photo into view and flash it briefly.
+  // Flash a photo and scroll it into view. Used by map-pin clicks (the target
+  // is already on-screen) and by the "next without GPS" stepper (the target may
+  // be on a page that just loaded). The scroll is deferred two frames so it
+  // runs after the new page has committed and painted — otherwise the element
+  // wouldn't exist yet and the scroll would silently no-op.
   const flashPhoto = (id: string) => {
     setFlashedAssetId(id);
-    document
-      .querySelector(`[data-asset-id="${id}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-asset-id="${id}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      })
+    );
     if (flashTimer.current) clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setFlashedAssetId(null), 1800);
   };
 
-  // Photos without GPS, in the grid's current order — what Back/Forward
-  // step through. Operates on currently-loaded photos only, same as every
-  // other client-side interaction here (map pins, hover, etc.).
-  const missingGpsAssets = useMemo(
-    () => assets.filter((a) => a.latitude == null || a.longitude == null),
-    [assets]
-  );
+  const noGps = (a: { latitude?: number | null; longitude?: number | null }) =>
+    a.latitude == null || a.longitude == null;
 
-  const jumpToMissingGps = (direction: 1 | -1) => {
-    if (missingGpsAssets.length === 0) return;
-    const anchorId = selectedIds[0];
-    const anchorIndex = anchorId
-      ? missingGpsAssets.findIndex((a) => a.id === anchorId)
-      : -1;
-    const nextIndex =
-      anchorIndex === -1
-        ? direction === 1
-          ? 0
-          : missingGpsAssets.length - 1
-        : (anchorIndex + direction + missingGpsAssets.length) % missingGpsAssets.length;
-    const target = missingGpsAssets[nextIndex];
+  // Photos without GPS on the current page, in grid order — what Back/Forward
+  // step through within a page before crossing to the next one.
+  const missingGpsAssets = useMemo(() => assets.filter(noGps), [assets]);
+
+  const [jumping, setJumping] = useState(false);
+
+  // Select a missing-GPS photo and reveal it on the map.
+  const pickMissing = (target: { id: string }) => {
     updateContext({ selectedIds: [target.id] });
     flashPhoto(target.id);
+  };
+
+  // Load consecutive pages in `direction` until one contains a missing-GPS
+  // photo, then select it (the first one going forward, the last going back).
+  // Under "Location Not Set" every photo qualifies, so this stops on the very
+  // next page; under "All" a page can be all-GPS, so it may skip a few. Bounded
+  // by hasMore / page 1, so it always terminates.
+  const advanceAcrossPages = async (startPage: number, direction: 1 | -1) => {
+    let target = startPage;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const res = await loadPage(target);
+      if (!res) return; // load failed; toast already shown
+      const missing = res.assets.filter(noGps);
+      if (missing.length) {
+        pickMissing(direction === 1 ? missing[0] : missing[missing.length - 1]);
+        return;
+      }
+      if (direction === 1) {
+        if (!res.hasMore) {
+          toast({ title: "No more photos without GPS", description: "You've reached the end." });
+          return;
+        }
+        target += 1;
+      } else {
+        if (target <= 1) {
+          toast({ title: "No earlier photos without GPS", description: "You're at the start." });
+          return;
+        }
+        target -= 1;
+      }
+    }
+  };
+
+  // Step to the next/previous photo without GPS. Stays on the current page when
+  // it can; when the step runs off the page edge it pages the grid (forward or
+  // back) to the next page that has one — so a long geotagging pass never
+  // stalls at a page boundary. Does not wrap around the whole library.
+  const jumpToMissingGps = async (direction: 1 | -1) => {
+    if (jumping) return;
+    const anchorId = selectedIds[0];
+    const anchorIndex = anchorId ? missingGpsAssets.findIndex((a) => a.id === anchorId) : -1;
+
+    // No anchor on this page: start from the near end of the current page if it
+    // has any missing-GPS photos, otherwise fall through to a page hop.
+    if (anchorIndex === -1 && missingGpsAssets.length > 0) {
+      pickMissing(direction === 1 ? missingGpsAssets[0] : missingGpsAssets[missingGpsAssets.length - 1]);
+      return;
+    }
+
+    const nextIndex = anchorIndex + direction;
+    if (nextIndex >= 0 && nextIndex < missingGpsAssets.length) {
+      pickMissing(missingGpsAssets[nextIndex]);
+      return;
+    }
+
+    // Off the edge of this page — cross into an adjacent page.
+    setJumping(true);
+    try {
+      if (direction === 1) {
+        if (!hasMore) {
+          toast({ title: "No more photos without GPS", description: "You've reached the end." });
+          return;
+        }
+        await advanceAcrossPages(page + 1, 1);
+      } else {
+        if (page <= 1) {
+          toast({ title: "No earlier photos without GPS", description: "You're at the start." });
+          return;
+        }
+        await advanceAcrossPages(page - 1, -1);
+      }
+    } finally {
+      setJumping(false);
+    }
   };
 
   // Per-thumbnail overlays: green/red GPS chip (bottom-left) and an expand
@@ -734,8 +847,8 @@ export default function LocationManager() {
                 <Button
                   variant="outline"
                   size="sm"
-                  title="Previous photo without GPS"
-                  disabled={missingGpsAssets.length === 0}
+                  title="Previous photo without GPS (steps back a page if needed)"
+                  disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && page <= 1)}
                   onClick={() => jumpToMissingGps(-1)}
                 >
                   <ChevronLeft size={16} />
@@ -743,8 +856,8 @@ export default function LocationManager() {
                 <Button
                   variant="outline"
                   size="sm"
-                  title="Next photo without GPS"
-                  disabled={missingGpsAssets.length === 0}
+                  title="Next photo without GPS (advances a page if needed)"
+                  disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && !hasMore)}
                   onClick={() => jumpToMissingGps(1)}
                 >
                   <ChevronRight size={16} />
@@ -865,17 +978,31 @@ export default function LocationManager() {
                     onPhotoHover={setHoveredAssetId}
                     highlightedAssetId={flashedAssetId}
                   />
-                  <div className="flex flex-col items-center gap-2 py-4">
-                    <p className="text-xs text-muted-foreground">
-                      Showing {assets.length}
-                      {total != null ? ` of ${total.toLocaleString()}` : ""} item
-                      {(total ?? assets.length) === 1 ? "" : "s"}
+                  <div className="flex flex-wrap items-center justify-center gap-3 py-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1 || loading}
+                      onClick={() => loadPage(page - 1)}
+                    >
+                      <ChevronLeft size={16} className="mr-1" /> Previous
+                    </Button>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">
+                      {total != null && total > 0
+                        ? `${((page - 1) * LOCATION_MANAGER_PAGE_SIZE + 1).toLocaleString()}–${(
+                            (page - 1) * LOCATION_MANAGER_PAGE_SIZE + assets.length
+                          ).toLocaleString()} of ${total.toLocaleString()}`
+                        : `${assets.length} item${assets.length === 1 ? "" : "s"}`}
+                      {pageCount != null ? ` · page ${page.toLocaleString()} of ${pageCount.toLocaleString()}` : ""}
                     </p>
-                    {hasMore && (
-                      <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-                        {loadingMore ? "Loading..." : "Load more"}
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!hasMore || loading}
+                      onClick={() => loadPage(page + 1)}
+                    >
+                      Next <ChevronRight size={16} className="ml-1" />
+                    </Button>
                   </div>
                 </>
               )}
