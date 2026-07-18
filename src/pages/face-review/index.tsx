@@ -240,7 +240,7 @@ export default function FaceReviewIndexPage() {
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm text-muted-foreground">Show</label>
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-52 h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-52 h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FILTERS.map((f) => (
                 <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
@@ -252,7 +252,7 @@ export default function FaceReviewIndexPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name…"
-              className="h-8 w-56 pr-7"
+              className="h-9 w-56 pr-7"
             />
             {search && (
               <button

@@ -57,7 +57,7 @@ export default function ReviewTabs({
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">Include</label>
           <Select value={scope} onValueChange={(v) => setParams({ scope: v })}>
-            <SelectTrigger className="w-48 h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="unnamed">Unnamed faces only</SelectItem>
               <SelectItem value="named">Already-named faces</SelectItem>

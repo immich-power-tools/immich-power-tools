@@ -179,7 +179,7 @@ export default function TaggedFacesView({
           <>
             <label className="text-sm text-muted-foreground">Show</label>
             <Select value={show} onValueChange={(v) => { setShow(v as any); setPage(1); setRemoved(new Set()); }}>
-              <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All faces</SelectItem>
                 <SelectItem value="prebirth">Before birth date</SelectItem>
@@ -189,7 +189,7 @@ export default function TaggedFacesView({
               <>
                 <label className="text-sm text-muted-foreground">Sort</label>
                 <Select value={sort} onValueChange={(v) => { setSort(v as ISort); setPage(1); setRemoved(new Set()); }}>
-                  <SelectTrigger className="w-44 h-8"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="confidence">Least typical first</SelectItem>
                     <SelectItem value="recent">Newest</SelectItem>
@@ -200,7 +200,7 @@ export default function TaggedFacesView({
             )}
             <label className="text-sm text-muted-foreground">Per page</label>
             <Select value={String(perPage)} onValueChange={(v) => { setPerPage(+v); setPage(1); setRemoved(new Set()); }}>
-              <SelectTrigger className="w-20 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-20 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[25, 50, 100, 200].map((n) => (
                   <SelectItem key={n} value={String(n)}>{n}</SelectItem>
