@@ -249,7 +249,7 @@ export default function FavoritesSheet({
                   <Input
                     autoFocus
                     value={renameDraft}
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                     onChange={(e) => setRenameDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleRename();
@@ -258,7 +258,7 @@ export default function FavoritesSheet({
                   />
                   <Button
                     size="sm"
-                    className="h-8 px-2 shrink-0"
+                    className="h-9 px-2 shrink-0"
                     disabled={!renameDraft.trim() || busy}
                     onClick={handleRename}
                   >
@@ -267,7 +267,7 @@ export default function FavoritesSheet({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 px-2 shrink-0"
+                    className="h-9 px-2 shrink-0"
                     onClick={() => setRenamingId(null)}
                   >
                     <X size={14} />

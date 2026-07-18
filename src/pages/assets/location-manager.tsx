@@ -919,7 +919,7 @@ export default function LocationManager() {
                           ? "Select images first"
                           : "lat, long"
                       }
-                      className={`w-40 h-8 text-sm shrink-0 ${imageCoordsError ? "border-destructive" : ""}`}
+                      className={`w-40 h-9 text-sm shrink-0 ${imageCoordsError ? "border-destructive" : ""}`}
                       onChange={(e) => {
                         setImageCoordsDraft(e.target.value);
                         setImageCoordsError(false);
@@ -1071,7 +1071,7 @@ export default function LocationManager() {
                         autoFocus
                         value={quickAddName}
                         placeholder="e.g. Home"
-                        className="h-8 text-sm"
+                        className="h-9 text-sm"
                         onChange={(e) => setQuickAddName(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleQuickAdd();
@@ -1080,7 +1080,7 @@ export default function LocationManager() {
                       />
                       <Button
                         size="sm"
-                        className="h-8 shrink-0"
+                        className="h-9 shrink-0"
                         disabled={!quickAddName.trim() || favoritesState.busy}
                         onClick={handleQuickAdd}
                       >
