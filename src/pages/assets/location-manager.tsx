@@ -152,7 +152,7 @@ export default function LocationManager() {
   const updateConfirmRef = useRef<IAlertDialogActions>(null);
   const [pendingUpdateCoords, setPendingUpdateCoords] = useState<ILatLng | null>(null);
 
-  // Quick "Add favourite" popover (right panel; saves the selected pin)
+  // Quick "Create Favourite" popover (right panel; saves the selected pin)
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddName, setQuickAddName] = useState("");
 
@@ -830,47 +830,31 @@ export default function LocationManager() {
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             {/* Always visible — never hidden by selection state. */}
             <div className="shrink-0 border-b bg-background px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Switch
-                  id="show-all-on-map"
-                  checked={showAllOnMap}
-                  onCheckedChange={setShowAllOnMap}
-                />
-                <Label
-                  htmlFor="show-all-on-map"
-                  className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
-                >
-                  All on map
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  title="Previous photo without GPS (steps back a page if needed)"
-                  disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && page <= 1)}
-                  onClick={() => jumpToMissingGps(-1)}
-                >
-                  <ChevronLeft size={16} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  title="Next photo without GPS (advances a page if needed)"
-                  disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && !hasMore)}
-                  onClick={() => jumpToMissingGps(1)}
-                >
-                  <ChevronRight size={16} />
-                </Button>
-              </div>
-            </div>
-            {selectedIds.length > 0 && (
-              <div className="shrink-0 border-b bg-background px-3 py-2 flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-muted-foreground whitespace-nowrap">
-                      {selectedIds.length} Selected
-                    </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Next/previous photo without GPS — far left */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Previous photo without GPS (steps back a page if needed)"
+                    disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && page <= 1)}
+                    onClick={() => jumpToMissingGps(-1)}
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Next photo without GPS (advances a page if needed)"
+                    disabled={jumping || gpsStatus === "set" || (missingGpsAssets.length === 0 && !hasMore)}
+                    onClick={() => jumpToMissingGps(1)}
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+                {/* Selection controls — appear once something is selected */}
+                {selectedIds.length > 0 && (
+                  <>
                     {selectedIds.length < assets.length && (
                       <Button
                         variant="outline"
@@ -889,6 +873,31 @@ export default function LocationManager() {
                     >
                       Deselect all
                     </Button>
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">
+                      {selectedIds.length} Selected
+                    </p>
+                  </>
+                )}
+              </div>
+              {/* Show all on map — far right */}
+              <div className="flex items-center gap-1.5">
+                <Switch
+                  id="show-all-on-map"
+                  checked={showAllOnMap}
+                  onCheckedChange={setShowAllOnMap}
+                />
+                <Label
+                  htmlFor="show-all-on-map"
+                  className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
+                >
+                  Show all on map
+                </Label>
+              </div>
+            </div>
+            {selectedIds.length > 0 && (
+              <div className="shrink-0 border-b bg-background px-3 py-2 flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -928,6 +937,9 @@ export default function LocationManager() {
                         if (e.key === "Enter") handleUpdateClick();
                       }}
                     />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      Image GPS
+                    </span>
                     <Button
                       size="sm"
                       className="shrink-0"
@@ -1056,7 +1068,7 @@ export default function LocationManager() {
                       }
                       className={activeButtonClass(!!selectedPinCoords, "green")}
                     >
-                      <Plus size={14} className="mr-1" /> Add favourite
+                      <Plus size={14} className="mr-1" /> Create Favourite
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent align="start" className="w-72 flex flex-col gap-2">

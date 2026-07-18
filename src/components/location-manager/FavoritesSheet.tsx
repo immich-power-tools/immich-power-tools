@@ -230,7 +230,7 @@ export default function FavoritesSheet({
           <SheetDescription>
             Saved spots you tag photos with often. Drag to reorder — the same
             order shows in every Favourites menu. To add one, use the
-            &quot;Add favourite&quot; button next to the map.
+            &quot;Create Favourite&quot; button next to the map.
           </SheetDescription>
         </SheetHeader>
 
