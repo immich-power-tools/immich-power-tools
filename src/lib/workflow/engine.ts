@@ -296,9 +296,9 @@ export async function executeWorkflow(
         if (node.subType === "if") {
           // Query assets matching conditions, scoped to incoming set
           const conditions = config.conditions || [];
-          log(runId, `IF: ${conditions.length} conditions: ${conditions.map((c: any) => c.type).join(", ")}`);
+          log(runId, `IF: match ${config.match ?? "all"} of ${conditions.length} conditions: ${conditions.map((c: any) => c.type).join(", ")}`);
 
-          const whereClauses = buildConditions(conditions, user.id);
+          const whereClauses = buildConditions(conditions, user.id, config.match ?? "all");
 
           // Scoped to incoming assets (chunked) when available
           const matchedIds = await queryConditionMatches(whereClauses, assetIds);
@@ -339,9 +339,9 @@ export async function executeWorkflow(
 
           for (let ci = 0; ci < cases.length; ci++) {
             const c = cases[ci];
-            log(runId, `  Case "${c.label || ci}": ${(c.conditions || []).length} conditions, checking against ${remaining?.length ?? "all"} assets`);
+            log(runId, `  Case "${c.label || ci}": match ${c.match ?? "all"} of ${(c.conditions || []).length} conditions, checking against ${remaining?.length ?? "all"} assets`);
 
-            const whereClauses = buildConditions(c.conditions || [], user.id);
+            const whereClauses = buildConditions(c.conditions || [], user.id, c.match ?? "all");
 
             // Scoped to remaining assets (chunked) when available
             const matchedIds = await queryConditionMatches(whereClauses, remaining);

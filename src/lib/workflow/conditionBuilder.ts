@@ -1,23 +1,34 @@
-import { SQL, and, eq, ne, gte, lte, isNull, sql } from "drizzle-orm";
+import { SQL, and, or, eq, ne, gte, lte, isNull, sql } from "drizzle-orm";
 import { assets } from "@/schema/assets.schema";
 import { exif } from "@/schema";
-import { ICondition } from "@/types/workflow";
+import { ICondition, IConditionMatch } from "@/types/workflow";
 import { subDays } from "date-fns";
 
-export function buildConditions(conditions: ICondition[], ownerId: string): SQL[] {
-  const clauses: SQL[] = [
+export function buildConditions(
+  conditions: ICondition[],
+  ownerId: string,
+  match: IConditionMatch = "all",
+): SQL[] {
+  // These four are NON-NEGOTIABLE and always ANDed. They must never be folded
+  // into the OR group below — under "match any" that would make a single
+  // matching user condition pull in other owners' / trashed / archived assets.
+  const base: SQL[] = [
     eq(assets.ownerId, ownerId),
     eq(assets.visibility, "timeline"),
     eq(assets.status, "active"),
     isNull(assets.deletedAt),
   ];
 
+  const userClauses: SQL[] = [];
   for (const c of conditions) {
     const clause = buildSingleCondition(c);
-    if (clause) clauses.push(clause);
+    if (clause) userClauses.push(clause);
   }
 
-  return clauses;
+  if (userClauses.length === 0) return base;
+  // "any" => OR the user's conditions together as ONE clause, still ANDed
+  // against the base scoping. "all" (default) keeps the historical behavior.
+  return match === "any" ? [...base, or(...userClauses)!] : [...base, ...userClauses];
 }
 
 function buildSingleCondition(c: ICondition): SQL | undefined {
@@ -228,22 +239,69 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
     case "not_in_album":
       return sql`NOT EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id})`;
 
+    // Kept for workflows saved before the "album" condition existed; the new
+    // "album" type below covers both directions with an album picker.
     case "not_in_specific_album":
       return sql`NOT EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id} AND aa."albumId" = ${c.albumId})`;
 
-    case "geo_radius":
-      if (c.lat !== undefined && c.lng !== undefined && c.radiusKm) {
-        // Haversine approximation: 1 degree ≈ 111km
-        const latDelta = c.radiusKm / 111;
-        const lngDelta = c.radiusKm / (111 * Math.cos((c.lat * Math.PI) / 180));
-        return and(
-          gte(exif.latitude, c.lat - latDelta),
-          lte(exif.latitude, c.lat + latDelta),
-          gte(exif.longitude, c.lng - lngDelta),
-          lte(exif.longitude, c.lng + lngDelta),
-        )!;
+    case "album": {
+      if (!c.albumId) return undefined;
+      return c.match === "not_in"
+        ? sql`NOT EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id} AND aa."albumId" = ${c.albumId})`
+        : sql`EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id} AND aa."albumId" = ${c.albumId})`;
+    }
+
+    case "geo_radius": {
+      const lat = Number(c.lat);
+      const lng = Number(c.lng);
+      const r = Number(c.radiusKm);
+      if (![lat, lng, r].every(Number.isFinite) || r <= 0) return undefined;
+
+      // A photo with no coordinates is neither inside nor outside, so both
+      // directions require GPS rather than sweeping every un-located photo
+      // into "outside".
+      const hasGps = and(
+        sql`${exif.latitude} IS NOT NULL`,
+        sql`${exif.longitude} IS NOT NULL`,
+      )!;
+
+      // Exact great-circle (haversine) distance in km. The previous version
+      // used only the bounding box below, which is a square — its corners sit
+      // up to ~1.41x the requested radius away.
+      const distanceKm = sql`(2 * 6371 * asin(sqrt(
+        power(sin(radians(${exif.latitude} - ${lat}) / 2), 2) +
+        cos(radians(${lat})) * cos(radians(${exif.latitude})) *
+        power(sin(radians(${exif.longitude} - ${lng}) / 2), 2)
+      )))`;
+
+      if (c.match === "outside") {
+        // No bounding box here: it would wrongly exclude far-away photos.
+        return and(hasGps, sql`${distanceKm} > ${r}`)!;
       }
-      return undefined;
+
+      // Inside: cheap, index-friendly bounding box narrows the set first, then
+      // the exact distance trims the corners. Skipped near the poles or the
+      // antimeridian, where a naive box wraps and would drop real matches.
+      const latDelta = r / 111.045;
+      const cosLat = Math.cos((lat * Math.PI) / 180);
+      const lngDelta = Math.abs(cosLat) < 1e-6 ? 180 : r / (111.045 * Math.abs(cosLat));
+      const boxSafe =
+        lngDelta < 180 &&
+        lng - lngDelta >= -180 && lng + lngDelta <= 180 &&
+        lat - latDelta >= -90 && lat + latDelta <= 90;
+
+      const parts: SQL[] = [hasGps];
+      if (boxSafe) {
+        parts.push(
+          gte(exif.latitude, lat - latDelta),
+          lte(exif.latitude, lat + latDelta),
+          gte(exif.longitude, lng - lngDelta),
+          lte(exif.longitude, lng + lngDelta),
+        );
+      }
+      parts.push(sql`${distanceKm} <= ${r}`);
+      return and(...parts)!;
+    }
 
     default:
       return undefined;

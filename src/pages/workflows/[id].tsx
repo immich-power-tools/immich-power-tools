@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ASSET_THUMBNAIL_PATH } from "@/config/routes";
 import { IWorkflowRun } from "@/types/workflow";
-import { ArrowLeft, Play, Save, Clock, Webhook, History, ChevronUp, ChevronDown, Bug } from "lucide-react";
+import { ArrowLeft, Play, Save, Clock, Webhook, History, ChevronUp, ChevronDown, Bug, Trash2 } from "lucide-react";
 import Head from "next/head";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -346,6 +346,17 @@ function WorkflowEditorInner() {
     setSelectedNode((prev) => prev ? { ...prev, data: { ...prev.data, config } } : null);
   }, [selectedNode, setNodes]);
 
+  // Selecting a node and pressing Delete/Backspace already worked, but there
+  // was no visible way to do it — which left orphaned nodes stranded on the
+  // canvas. Drops the node and any edges touching it; takes effect on Save.
+  const deleteSelectedNode = useCallback(() => {
+    if (!selectedNode) return;
+    const id = selectedNode.id;
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    setSelectedNode(null);
+  }, [selectedNode, setNodes, setEdges]);
+
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
@@ -397,7 +408,18 @@ function WorkflowEditorInner() {
 
     return (
       <div className="p-4 space-y-4 overflow-y-auto">
-        <h3 className="text-sm font-semibold">{typeLabel}: {subType}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-semibold">{typeLabel}: {subType}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+            title="Delete this node (or select it and press Delete)"
+            onClick={deleteSelectedNode}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
         {nodeType === "trigger" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
