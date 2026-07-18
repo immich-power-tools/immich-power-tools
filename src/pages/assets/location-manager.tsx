@@ -852,31 +852,30 @@ export default function LocationManager() {
                     <ChevronRight size={16} />
                   </Button>
                 </div>
-                {/* Selection controls — appear once something is selected */}
+                {/* Selection controls — always visible; disabled when the
+                    action would be a no-op. */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!assets.length || selectedIds.length === assets.length}
+                  onClick={() =>
+                    updateContext({ selectedIds: assets.map((a) => a.id) })
+                  }
+                >
+                  Select all
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!selectedIds.length}
+                  onClick={() => updateContext({ selectedIds: [] })}
+                >
+                  Deselect all
+                </Button>
                 {selectedIds.length > 0 && (
-                  <>
-                    {selectedIds.length < assets.length && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateContext({ selectedIds: assets.map((a) => a.id) })
-                        }
-                      >
-                        Select all
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateContext({ selectedIds: [] })}
-                    >
-                      Deselect all
-                    </Button>
-                    <p className="text-sm text-muted-foreground whitespace-nowrap">
-                      {selectedIds.length} Selected
-                    </p>
-                  </>
+                  <p className="text-sm text-muted-foreground whitespace-nowrap">
+                    {selectedIds.length} Selected
+                  </p>
                 )}
               </div>
               {/* Show all on map — far right */}
@@ -920,6 +919,9 @@ export default function LocationManager() {
                     </Button>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      Image GPS
+                    </span>
                     <Input
                       value={imageCoordsDraft}
                       disabled={selectedIds.length === 0}
@@ -937,9 +939,6 @@ export default function LocationManager() {
                         if (e.key === "Enter") handleUpdateClick();
                       }}
                     />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      Image GPS
-                    </span>
                     <Button
                       size="sm"
                       className="shrink-0"
