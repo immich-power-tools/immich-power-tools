@@ -3,7 +3,7 @@ import "react-photo-album/rows.css";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive, CheckCircle2, ChevronLeft, ChevronRight, Circle, ExternalLink, Filter, Glasses, Heart,
-  Info, Loader2, SortAsc, SortDesc, Star, Trash2, X, XCircle,
+  Image as ImageIcon, Info, Layers, Loader2, SortAsc, SortDesc, Star, Trash2, Video, X, XCircle,
 } from "lucide-react";
 import { RowsPhotoAlbum } from "react-photo-album";
 import type { RenderImageContext, RenderImageProps } from "react-photo-album";
@@ -31,6 +31,7 @@ import {
   addTagToAssets, ensureCullTags, ICullAsset, ICullPickStatus, ICullRatingComparator,
   ICullReviewStatus, listCullAssets, removeTagFromAssets,
 } from "@/handlers/api/cull.handler";
+import { cn } from "@/lib/utils";
 import { ASSET_PREVIEW_PATH, ASSET_THUMBNAIL_PATH, ASSET_VIDEO_PATH } from "@/config/routes";
 import {
   displayKey, ICullShortcutAction, keyMatches, loadCullShortcuts, saveCullShortcuts,
@@ -41,6 +42,9 @@ const PAGE_SIZE = 200;
 
 type ISourceMode = "library" | "album" | "range";
 type IFlag = "pick" | "reject" | null;
+
+/** Asset-type filter — `assets.type` is "IMAGE" | "VIDEO" in Immich. */
+type ICullAssetType = "all" | "IMAGE" | "VIDEO";
 
 const isTypingTarget = (el: EventTarget | null) => {
   const tag = (el as HTMLElement)?.tagName;
@@ -118,6 +122,7 @@ export default function CullPhotosPage() {
   // Defaults to "unreviewed" (unlike the other filters) so the queue always
   // opens on wherever you left off reviewing.
   const [reviewStatusFilter, setReviewStatusFilter] = useState<Set<ICullReviewStatus>>(new Set(["unreviewed"]));
+  const [assetTypeFilter, setAssetTypeFilter] = useState<ICullAssetType>("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const { exImmichUrl } = useConfig();
   // Full-screen viewer's bottom control chips key off the site theme (the
@@ -193,6 +198,7 @@ export default function CullPhotosPage() {
           ratingComparator,
           flag: Array.from(pickStatusFilter),
           reviewed: Array.from(reviewStatusFilter),
+          assetType: assetTypeFilter === "all" ? undefined : assetTypeFilter,
           sortOrder,
           page,
           limit: PAGE_SIZE,
@@ -207,7 +213,7 @@ export default function CullPhotosPage() {
         reset ? setLoading(false) : setLoadingMore(false);
       }
     },
-    [sourceParams, ratingValue, ratingComparator, pickStatusFilter, reviewStatusFilter, sortOrder]
+    [sourceParams, ratingValue, ratingComparator, pickStatusFilter, reviewStatusFilter, assetTypeFilter, sortOrder]
   );
 
   // Any source/filter change restarts from page 1 (server does the filtering).
@@ -576,11 +582,15 @@ export default function CullPhotosPage() {
         }
       />
       <div className="flex flex-col gap-3 p-4">
-        {/* source + filter row */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Source + filter row. Sticky so it stays put while the grid scrolls;
+            the negative margins bleed the opaque background over the wrapper's
+            p-4 padding, and `top-0` pins it to the top of PageLayout's scroll
+            area. Sizing here follows the app defaults (h-9, 16px icons) to
+            match the original modules. */}
+        <div className="sticky top-0 z-20 -mx-4 -mt-4 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 pb-3 pt-4 backdrop-blur-sm">
           <label className="text-sm text-muted-foreground">Review</label>
           <Select value={mode} onValueChange={(v) => setMode(v as ISourceMode)}>
-            <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="library">Whole library</SelectItem>
               <SelectItem value="album">Album</SelectItem>
@@ -589,7 +599,7 @@ export default function CullPhotosPage() {
           </Select>
           {mode === "album" && (
             <Select value={albumId} onValueChange={setAlbumId}>
-              <SelectTrigger className="w-72 h-8"><SelectValue placeholder="Choose an album…" /></SelectTrigger>
+              <SelectTrigger className="w-72"><SelectValue placeholder="Choose an album…" /></SelectTrigger>
               <SelectContent>
                 {albums.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.albumName} ({a.assetCount})</SelectItem>
@@ -599,12 +609,12 @@ export default function CullPhotosPage() {
           )}
           {mode === "range" && (
             <>
-              <Input type="date" className="h-8 w-40" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <Input type="date" className="w-40" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               <span className="text-sm text-muted-foreground">to</span>
-              <Input type="date" className="h-8 w-40" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <Input type="date" className="w-40" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               {DATE_PRESETS.map((p) => (
                 <Button
-                  key={p.label} size="sm" variant="ghost" className="h-8 px-2 text-xs"
+                  key={p.label} variant="ghost" className="px-2 text-xs"
                   onClick={() => { const [s, en] = p.range(); setStartDate(s); setEndDate(en); }}
                 >
                   {p.label}
@@ -613,7 +623,7 @@ export default function CullPhotosPage() {
             </>
           )}
           <Button
-            size="sm" variant="outline" className="h-8"
+            variant="outline"
             title="Select every loaded photo (Cmd/Ctrl+A)"
             disabled={!assets.length || selectedIds.length === assets.length}
             onClick={() => setSelectedIds(assets.map((a) => a.id))}
@@ -621,7 +631,7 @@ export default function CullPhotosPage() {
             Select all
           </Button>
           <Button
-            size="sm" variant="outline" className="h-8"
+            variant="outline"
             title="Deselect all (Esc)"
             disabled={!selectedIds.length}
             onClick={() => setSelectedIds([])}
@@ -630,33 +640,54 @@ export default function CullPhotosPage() {
           </Button>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Filter size={14} /> Filters
+              <Filter size={16} /> Filters
             </span>
+            {/* Asset type — single-select: All / Photos / Videos */}
+            <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+              {([
+                { v: "all", title: "All", Icon: Layers },
+                { v: "IMAGE", title: "Photos only", Icon: ImageIcon },
+                { v: "VIDEO", title: "Videos only", Icon: Video },
+              ] as { v: ICullAssetType; title: string; Icon: typeof Layers }[]).map(({ v, title, Icon }) => (
+                <button
+                  key={v}
+                  type="button"
+                  title={title}
+                  className={cn(
+                    "rounded p-2",
+                    assetTypeFilter === v ? "bg-foreground text-background" : "text-muted-foreground hover:bg-accent"
+                  )}
+                  onClick={() => setAssetTypeFilter(v)}
+                >
+                  <Icon size={16} />
+                </button>
+              ))}
+            </div>
             {/* Pick status — multi-select */}
             <div className="flex items-center gap-0.5 rounded-md border p-0.5">
               <button
                 type="button"
                 title="Picked"
-                className={`rounded p-1.5 ${pickStatusFilter.has("picked") ? "bg-emerald-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
+                className={`rounded p-2 ${pickStatusFilter.has("picked") ? "bg-emerald-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
                 onClick={() => togglePickStatus("picked")}
               >
-                <CheckCircle2 size={15} />
+                <CheckCircle2 size={16} />
               </button>
               <button
                 type="button"
                 title="Rejected"
-                className={`rounded p-1.5 ${pickStatusFilter.has("rejected") ? "bg-red-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
+                className={`rounded p-2 ${pickStatusFilter.has("rejected") ? "bg-red-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
                 onClick={() => togglePickStatus("rejected")}
               >
-                <XCircle size={15} />
+                <XCircle size={16} />
               </button>
               <button
                 type="button"
                 title="Unflagged"
-                className={`rounded p-1.5 ${pickStatusFilter.has("unflagged") ? "bg-slate-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
+                className={`rounded p-2 ${pickStatusFilter.has("unflagged") ? "bg-slate-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
                 onClick={() => togglePickStatus("unflagged")}
               >
-                <Circle size={15} />
+                <Circle size={16} />
               </button>
             </div>
 
@@ -670,7 +701,7 @@ export default function CullPhotosPage() {
               >
                 {ratingComparator === "eq" ? "=" : ratingComparator === "gt" ? ">" : "<"}
               </button>
-              <StarRow value={ratingValue} size={16} onRate={setRatingValue} mutedClassName="text-muted-foreground/40" />
+              <StarRow value={ratingValue} size={18} onRate={setRatingValue} mutedClassName="text-muted-foreground/40" />
             </div>
 
             {/* Review status — multi-select */}
@@ -678,25 +709,24 @@ export default function CullPhotosPage() {
               <button
                 type="button"
                 title="Reviewed"
-                className={`rounded p-1.5 ${reviewStatusFilter.has("reviewed") ? "bg-sky-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
+                className={`rounded p-2 ${reviewStatusFilter.has("reviewed") ? "bg-sky-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
                 onClick={() => toggleReviewStatus("reviewed")}
               >
-                <Glasses size={15} />
+                <Glasses size={16} />
               </button>
               <button
                 type="button"
                 title="Unreviewed"
-                className={`rounded p-1.5 ${reviewStatusFilter.has("unreviewed") ? "bg-slate-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
+                className={`rounded p-2 ${reviewStatusFilter.has("unreviewed") ? "bg-slate-600 text-white" : "text-muted-foreground hover:bg-accent"}`}
                 onClick={() => toggleReviewStatus("unreviewed")}
               >
-                <GlassesOff size={15} />
+                <GlassesOff size={16} />
               </button>
             </div>
 
             {/* Sort direction */}
             <Button
               variant="default"
-              size="sm"
               title={sortOrder === "asc" ? "Oldest first" : "Newest first"}
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
             >

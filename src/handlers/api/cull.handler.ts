@@ -66,6 +66,8 @@ export interface ICullAsset extends IAsset {
 export type ICullRatingComparator = "lt" | "gt" | "eq";
 export type ICullPickStatus = "picked" | "rejected" | "unflagged";
 export type ICullReviewStatus = "reviewed" | "unreviewed";
+/** Immich stores `assets.type` as "IMAGE" | "VIDEO"; omitted = both. */
+export type ICullAssetTypeFilter = "IMAGE" | "VIDEO";
 
 export interface ICullAssetsParams {
   albumId?: string;
@@ -75,6 +77,7 @@ export interface ICullAssetsParams {
   ratingComparator?: ICullRatingComparator; // how ratingValue is applied; "eq" + no value = Unrated
   flag?: ICullPickStatus[]; // multi-select; empty/omitted = any
   reviewed?: ICullReviewStatus[]; // multi-select; empty or both = any
+  assetType?: ICullAssetTypeFilter; // omitted = photos and videos
   sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;

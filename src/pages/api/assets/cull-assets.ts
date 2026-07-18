@@ -18,8 +18,9 @@ import { CULL_TAG_NAMESPACE, PICK_TAG_NAME, REJECT_TAG_NAME, REVIEWED_TAG_NAME }
  * unrated, it's invalid as a rating since v3) via a value + comparator
  * (</>/=; no value + "=" means Unrated), pick status (Picked/Rejected tags —
  * see cull.handler.ts for why flags are tags and not the rating's -1 value,
- * multi-select), and reviewed state (a third, independent tag — not tied to
- * pick/reject, also multi-select).
+ * multi-select), reviewed state (a third, independent tag — not tied to
+ * pick/reject, also multi-select), and asset type (IMAGE/VIDEO; omitted =
+ * both).
  *
  * Server-side pagination is the point: the previous client fetched EVERY
  * page of an album before showing photo #1, which is exactly the slow-large-
@@ -39,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ratingComparator = "gt", // "lt" | "gt" | "eq" — how ratingValue is applied; "eq" with no value means Unrated
     flag = "", // comma-separated ICullPickStatus[]; empty = any
     reviewed = "", // comma-separated ICullReviewStatus[]; empty or both = any
+    assetType = "", // "IMAGE" | "VIDEO"; empty = both
     sortOrder = "desc",
     page = "1",
     limit = "200",
@@ -79,6 +81,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sql`EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id} AND aa."albumId" = ${albumId})`
     );
   }
+  // Allowlisted rather than passed through: `type` is a bare varchar, so an
+  // arbitrary value would silently return an empty feed rather than an error.
+  if (assetType === "IMAGE" || assetType === "VIDEO") conditions.push(eq(assets.type, assetType));
+
   if (startDate) conditions.push(gte(assets.localDateTime, new Date(`${startDate}T00:00:00`)));
   if (endDate) {
     const endExclusive = new Date(`${endDate}T00:00:00`);
