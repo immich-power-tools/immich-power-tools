@@ -115,7 +115,7 @@ export default function TagManagerPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tags…"
-              className="h-8 w-64 pr-7"
+              className="h-9 w-64 pr-7"
             />
             {search && (
               <button
@@ -144,7 +144,7 @@ export default function TagManagerPage() {
               value={rootName}
               onChange={(e) => setRootName(e.target.value)}
               placeholder="New top-level tag name…"
-              className="h-8 w-64"
+              className="h-9 w-64"
               onKeyDown={(e) => {
                 if (e.key === "Enter") addRoot();
                 else if (e.key === "Escape") { setRootName(""); setAddingRoot(false); }
