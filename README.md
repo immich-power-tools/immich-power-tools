@@ -75,7 +75,8 @@ AI_MODEL="gpt-4o-mini" # e.g. gpt-4o-mini, llama-3.1-8b-instant, llama3.1
 ```
 Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
 
-> [!NOTE] When creating the API key, make sure you select all the permissions for the API key.  
+> [!NOTE]
+> When creating the API key, make sure you select all the permissions for the API key.  
 
 #### Method 2 - Portainer
 
@@ -112,6 +113,7 @@ Copy paste the `.env.example` to `.env` and fill in the values.
   AI_BASE_URL="https://api.openai.com/v1" # Base URL for OpenAI-compatible API
   AI_MODEL="gpt-4o-mini" # Model used for parsing search queries in "Find"
 ```
+
 > [!NOTE]  
 > Make sure you have postgres port exposed on you machine.
 
@@ -164,14 +166,48 @@ Google Maps Javascript API Key is used to render the maps layer for heatmap. Whe
   > Code where heatmap data is plotted: [src/pages/assets/geo-heatmap.tsx:32](./src/pages/assets/geo-heatmap.tsx#L32-L35)
 
 - OpenAI-compatible AI provider for smart query parsing in Find
-Any OpenAI-compatible API can be used for parsing your search query in the "Find" page. You can use standard providers like **OpenAI** and **Groq**, or run local models using **Ollama** or **LM Studio**. We do not send any personal library data to the AI provider; only your search text is sent for parsing. The actual asset querying uses [Immich's Smart Search API](https://immich.app/docs/api/search-smart).
+Any OpenAI-compatible API can be used for parsing your search query in the "Find" page. You can use standard providers like **OpenAI** and **Grok**, or run local models using **Ollama** or **LM Studio**. We do not send any personal library data to the AI provider; only your search text is sent for parsing. The actual asset querying uses [Immich's Smart Search API](https://immich.app/docs/api/search-smart).
 
   > Code where AI parsing is used: [src/helpers/ai.helper.ts](./src/helpers/ai.helper.ts)
 
-  **Examples:**
-  - **OpenAI:** `AI_BASE_URL=https://api.openai.com/v1`, `AI_MODEL=gpt-4o-mini`
-  - **Groq:** `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.1-8b-instant`
-  - **Ollama (local):** `AI_BASE_URL=http://localhost:11434/v1` (or `http://host.docker.internal:11434/v1` if running Power Tools in Docker), `AI_MODEL=llama3.1`
+  **Examples for Popular Services:**
+  Following are examples for connecting to external services for: **OpenAI**, **Grok**, **Gemini** and **Ollama**. Feel free to either copy the example formats below, or enter them manually if you have any other service/model. Remember to populate `AI_BASE_KEY=` no matter which method you choose.
+  - **OpenAI (ChatGPT):**
+  
+  ```bash
+  # OpenAI (ChatGPT) - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://api.openai.com/v1"
+  AI_MODEL="gpt-4o-mini"
+  ```
+
+  - **Grok:**
+  
+  ```bash
+  # Grok - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://api.groq.com/openai/v1"
+  AI_MODEL="llama-3.1-8b-instant"
+  ```
+
+  - **Gemini:**
+
+  ```bash
+  # Gemini - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+  AI_MODEL="gemini-3-flash-preview"
+  ```
+
+  - **Ollama (local):**
+  
+  ```bash
+  # Ollama (local) - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="http://localhost:11434/v1"
+  # if container is running in Docker, change URL to: http://host.docker.internal:11434/v1
+  AI_MODEL="llama3.1"
+  ```
 
 ## Contributing
 
