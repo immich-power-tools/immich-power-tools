@@ -2,6 +2,7 @@ import { db } from "@/config/db";
 import { ENV } from "@/config/environment";
 import { ADD_ASSETS_TO_ALBUM_PATH, DELETE_ALBUMS_PATH } from "@/config/routes";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
+import { getUserHeaders } from "@/helpers/user.helper";
 import API from "@/lib/api";
 import { albumsAssetsAssets } from "@/schema/albumAssetsAssets.schema";
 import { albums } from "@/schema/albums.schema";
@@ -49,7 +50,7 @@ export default async function handler(
     )
     .limit(1);
 
-  if (!primaryAlbum) {
+  if (primaryAlbum.length === 0) {
     return res.status(404).json({ error: "Primary album not found" });
   }
 
@@ -73,20 +74,27 @@ export default async function handler(
     return res.status(404).json({ error: "Secondary album assets not found" });
   }
 
-  const secondaryAlbumAssetsIds = secondaryAlbumAssets.map((albumAsset) => albumAsset.assetId);
+  const secondaryAlbumAssetsIds = Array.from(
+    new Set(secondaryAlbumAssets.map((albumAsset) => albumAsset.assetId))
+  );
 
   const addAssetsToPrimaryAlbumURL = `${ENV.IMMICH_URL}/api/albums/${primaryAlbumId}/assets`;
   const addAssetsToPrimaryAlbum = await fetch(addAssetsToPrimaryAlbumURL, {
     method: 'PUT',
     body: JSON.stringify({ ids: secondaryAlbumAssetsIds }),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${currentUser.accessToken}`
-    }
+    headers: getUserHeaders(currentUser, { "Content-Type": "application/json" })
   });
-  
+
   if (!addAssetsToPrimaryAlbum.ok) {
-    return res.status(500).json({ error: "Failed to add assets to primary album" });
+    const errorBody = await addAssetsToPrimaryAlbum.text();
+    console.error(
+      `[albums/merge] Immich rejected add-assets request (status ${addAssetsToPrimaryAlbum.status}): ${errorBody}`
+    );
+    return res.status(500).json({
+      error: "Failed to add assets to primary album",
+      immichStatus: addAssetsToPrimaryAlbum.status,
+      immichError: errorBody,
+    });
   }
 
   // Delete secondary albums
@@ -94,9 +102,7 @@ export default async function handler(
     const deleteAlbumURL = `${ENV.IMMICH_URL}/api/albums/${album.id}`;
     return fetch(deleteAlbumURL, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${currentUser.accessToken}`
-      }
+      headers: getUserHeaders(currentUser)
     });
   });  
 

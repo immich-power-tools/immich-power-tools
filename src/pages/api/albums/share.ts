@@ -1,5 +1,7 @@
 import { ENV } from "@/config/environment";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
+import { getUserHeaders } from "@/helpers/user.helper";
+import { IUser } from "@/types/user";
 import { NextApiResponse } from "next";
 
 import { NextApiRequest } from "next";
@@ -11,21 +13,18 @@ interface IAlbumShare {
   showMetadata: boolean;
 }
 
-const generateShareLink = async (album: IAlbumShare, token: string) => {
+const generateShareLink = async (album: IAlbumShare, currentUser: IUser) => {
   const url = ENV.IMMICH_URL + "/api/shared-links";
   return fetch(url, {
     method: 'POST',
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       type: "ALBUM",
-      albumId: album.albumId, 
+      albumId: album.albumId,
       allowDownload: album.allowDownload,
       allowUpload: album.allowUpload,
       showMetadata: album.showMetadata,
     }),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers: getUserHeaders(currentUser, { "Content-Type": "application/json" })
   }).then(async (response) => {
     if (response.status >= 400) {
       return {
@@ -55,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const shareLinks = await Promise.all(albums.map(async (album) => {
-    return generateShareLink(album, currentUser.accessToken);
+    return generateShareLink(album, currentUser);
   }));
   return res.status(200).json(shareLinks);
 }

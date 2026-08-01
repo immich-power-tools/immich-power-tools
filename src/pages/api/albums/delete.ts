@@ -1,5 +1,7 @@
 import { ENV } from "@/config/environment";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
+import { getUserHeaders } from "@/helpers/user.helper";
+import { IUser } from "@/types/user";
 import { NextApiResponse } from "next";
 
 import { NextApiRequest } from "next";
@@ -11,13 +13,11 @@ interface IAlbumShare {
   showMetadata: boolean;
 }
 
-const deleteSingleAlbum = async (albumId: string, token: string) => {
+const deleteSingleAlbum = async (albumId: string, currentUser: IUser) => {
   const url = ENV.IMMICH_URL + "/api/albums/" + albumId;
   return fetch(url, {
     method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
+    headers: getUserHeaders(currentUser)
   }).then(async (response) => {
     if (response.status >= 400) {
       return {
@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const deleteResults = await Promise.all(albumIds.map(async (albumId) => {
-    return deleteSingleAlbum(albumId, currentUser.accessToken);
+    return deleteSingleAlbum(albumId, currentUser);
   }));
   return res.status(200).json(deleteResults);
 }
