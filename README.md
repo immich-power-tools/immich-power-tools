@@ -1,6 +1,6 @@
 # ![Logo](./public/favicon-32x32.png) Immich Power Tools
 
-A unofficial immich client to provide better tools to organize and manage your immich account. Building it to speed up your workflows in Immich to organize your people and albums.
+An unofficial immich client to provide better tools to organize and manage your immich account. Building it to speed up your workflows in Immich to organize your people and albums.
 
 > [!IMPORTANT]
 > **Immich v3.0 compatibility:** Power Tools **v0.22.0 and above require Immich 3.0 or newer**.
@@ -33,7 +33,7 @@ Recently I've migrated my entire Google photos library to Immich, I was able to 
 ### 🐬 Using Docker
 
 #### Power-tools is designed to be used alongside Immich, and there are two ways you can run it.
-#### Method 1 - Docker Compose ( Recommended )
+### Method 1 - Docker Compose ( Recommended )
 
 Add the following into your docker compose as a new service along side other immich services. Make sure you've `power-tools` in same network as immich.
 
@@ -73,12 +73,13 @@ AI_API_KEY=your_api_key_here # API key for your OpenAI-compatible provider
 AI_BASE_URL="https://api.openai.com/v1" # e.g. https://api.openai.com/v1 (OpenAI), https://api.groq.com/openai/v1 (Groq), http://host.docker.internal:11434/v1 (Ollama)
 AI_MODEL="gpt-4o-mini" # e.g. gpt-4o-mini, llama-3.1-8b-instant, llama3.1
 ```
-Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
+
+For obtaining **Immich's API Key**, please refer to [Immich's official docs](https://immich.app/docs/features/command-line-interface#obtain-the-api-key).
 
 > [!NOTE]
 > When creating the API key, make sure you select all the permissions for the API key.  
 
-#### Method 2 - Portainer
+### Method 2 - Portainer
 
 If you're using portainer, run the docker using `docker run` and add the power tools to the same network as immich.
 
@@ -115,9 +116,9 @@ Copy paste the `.env.example` to `.env` and fill in the values.
 ```
 
 > [!NOTE]  
-> Make sure you have postgres port exposed on you machine.
+> If the DB is not accessible, make sure that Postgres' port is exposed on your machine.
 
-Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
+For obtaining **Immich's API Key**, please refer to [Immich's official docs](https://immich.app/docs/features/command-line-interface#obtain-the-api-key).
 
 Run the development server:
 
@@ -157,7 +158,7 @@ bun run dev
 - [Shadcn](https://shadcn.com/) for UI Components
 - [Axios](https://axios-http.com/) for API calls
 
-## External Services
+## External Services (OPTIONAL)
 These services are completely optional and you can use the tool without them. Just that they are used for some of the features. But we dont send any personal data to these services.
 
 - [Google Maps](https://maps.google.com/) for heatmap
@@ -170,9 +171,12 @@ Any OpenAI-compatible API can be used for parsing your search query in the "Find
 
   > Code where AI parsing is used: [src/helpers/ai.helper.ts](./src/helpers/ai.helper.ts)
 
-  **Examples for Popular Services:**
-  Following are examples for connecting to external services for: **OpenAI**, **Grok**, **Gemini** and **Ollama**. Feel free to either copy the example formats below, or enter them manually if you have any other service/model. Remember to populate `AI_BASE_KEY=` no matter which method you choose.
-  - **OpenAI (ChatGPT):**
+### Examples for Popular Services
+  Following are examples for connecting to external services for: **OpenAI**, **Grok**, **Gemini** and **Ollama**. Feel free to either copy the example formats below, or enter them manually if you have any other service/model. 
+  
+  Remember to populate `AI_BASE_KEY=` no matter which method you choose.
+
+  1.  **OpenAI (ChatGPT):**
   
   ```bash
   # OpenAI (ChatGPT) - AI Configuration for Smart Search (Find)
@@ -181,7 +185,7 @@ Any OpenAI-compatible API can be used for parsing your search query in the "Find
   AI_MODEL="gpt-4o-mini"
   ```
 
-  - **Grok:**
+  2. **Grok:**
   
   ```bash
   # Grok - AI Configuration for Smart Search (Find)
@@ -190,7 +194,7 @@ Any OpenAI-compatible API can be used for parsing your search query in the "Find
   AI_MODEL="llama-3.1-8b-instant"
   ```
 
-  - **Gemini:**
+  3. **Gemini:**
 
   ```bash
   # Gemini - AI Configuration for Smart Search (Find)
@@ -199,7 +203,7 @@ Any OpenAI-compatible API can be used for parsing your search query in the "Find
   AI_MODEL="gemini-3-flash-preview"
   ```
 
-  - **Ollama (local):**
+ 4. **Ollama (local):**
   
   ```bash
   # Ollama (local) - AI Configuration for Smart Search (Find)
