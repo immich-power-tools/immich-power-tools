@@ -16,6 +16,8 @@ export interface IAsset {
   dateTimeOriginal: string;
   orientation?: number | null | string;
   downloadUrl?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface IAssetThumbhash {

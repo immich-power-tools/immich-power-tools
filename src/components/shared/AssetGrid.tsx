@@ -34,12 +34,24 @@ export interface AssetPhoto extends Photo {
   isVideo: boolean;
   duration?: string;
   isSelected: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface AssetGridProps {
   assets: IAsset[];
   isInternal?: boolean;
   selectable?: boolean;
+  /** Selection-first click mode: plain click selects just that photo,
+   *  cmd/ctrl toggles it, shift extends a range. The preview only opens
+   *  via renderExtras' openPreview action (or double-click). */
+  clickToSelect?: boolean;
+  /** Per-thumbnail overlay content; defaults to the open-in-Immich link. */
+  renderExtras?: (photo: AssetPhoto, actions: { openPreview: () => void }) => React.ReactNode;
+  /** Reports the photo id under the cursor (null when leaving). */
+  onPhotoHover?: (id: string | null) => void;
+  /** Photo to flash with a cyan ring (e.g. its map pin was clicked). */
+  highlightedAssetId?: string | null;
   onSelectionChange?: (ids: string[]) => void;
   onDeleteAsset?: (id: string) => void;
   onFavoriteAsset?: (id: string, isFavorite: boolean) => void;
@@ -51,7 +63,7 @@ interface AssetGridRef {
   unselectAll: () => void;
 }
 
-const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal = true, selectable = false, onSelectionChange, onDeleteAsset, onFavoriteAsset }, ref) => {
+const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal = true, selectable = false, clickToSelect = false, renderExtras, onPhotoHover, highlightedAssetId, onSelectionChange, onDeleteAsset, onFavoriteAsset }, ref) => {
   const [index, setIndex] = useState(-1);
   const [lastSelectedIndex, setLastSelectedIndex] = useState(-1);
   const [showInfoPanel, setShowInfoPanel] = useState(() => {
@@ -149,7 +161,36 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
     }
   };
 
+  const handleClickToSelect = (asset: AssetPhoto, event: React.MouseEvent) => {
+    const clickedIndex = images.findIndex((image) => image.id === asset.id);
+    let newSelectedIds: string[];
+    if (event.shiftKey && lastSelectedIndex >= 0) {
+      const startIndex = Math.min(clickedIndex, lastSelectedIndex);
+      const endIndex = Math.max(clickedIndex, lastSelectedIndex);
+      const rangeIds = images.slice(startIndex, endIndex + 1).map((image) => image.id);
+      newSelectedIds = [...new Set([...selectedIds, ...rangeIds])];
+    } else if (event.metaKey || event.ctrlKey) {
+      newSelectedIds = selectedIds.includes(asset.id)
+        ? selectedIds.filter((id) => id !== asset.id)
+        : [...selectedIds, asset.id];
+    } else {
+      // Plain click selects just this photo; clicking the sole selected photo deselects it.
+      newSelectedIds = selectedIds.length === 1 && selectedIds[0] === asset.id ? [] : [asset.id];
+    }
+    updateContext({ selectedIds: newSelectedIds });
+    onSelectionChange?.(newSelectedIds);
+    setLastSelectedIndex(clickedIndex);
+  };
+
   const handleClick = (index: number, asset: AssetPhoto, event: React.MouseEvent) => {
+    if (clickToSelect && selectable) {
+      if (event.detail >= 2) {
+        setIndex(index);
+      } else {
+        handleClickToSelect(asset, event);
+      }
+      return;
+    }
     if (selectable && (event.metaKey || event.ctrlKey || selectedIds.length > 0)) {
       handleSelect(index, asset, event);
     } else {
@@ -179,6 +220,7 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
   }, [assets]);
 
   const images: AssetPhoto[] = useMemo(() => {
+    const selectedSet = new Set(selectedIds);
     return assets
       .filter((p) => !deletedIds.has(p.id))
       .map((p) => ({
@@ -188,13 +230,15 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         width: p.exifImageWidth as number,
         height: p.exifImageHeight as number,
         orientation: 1,
-        isSelected: selectedIds.includes(p.id),
+        isSelected: selectedSet.has(p.id),
         isVideo: p.type === "VIDEO",
         duration: p.duration != null ? String(p.duration) : undefined,
       }));
   }, [assets, selectedIds, deletedIds]);
 
   const handleEsc = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
     if (event.key === "Escape") {
       updateContext({ selectedIds: [] });
       onSelectionChange?.([]);
@@ -217,6 +261,8 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         selectable={selectable}
         onSelect={(event) => handleSelect(context.index, context.photo, event)}
         selectionMode={selectable && selectedIds.length > 0}
+        onHover={onPhotoHover}
+        highlighted={highlightedAssetId === context.photo.id}
       />
     );
   };
@@ -264,7 +310,7 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         key="delete"
         type="button"
         className="yarl__button"
-        title="Delete"
+        title="Move to trash"
         onClick={() => setDeleteConfirmOpen(true)}
       >
         <Trash2 className="h-6 w-6 text-white" />
@@ -292,8 +338,10 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         }}
         render={{
           slideContainer: ({ children }) => (
-            <div className="flex h-full w-full">
-              <div className="flex-1 overflow-hidden flex items-center justify-center">
+            // Stacks on phones (info panel below the photo) instead of
+            // crushing the photo beside a fixed-width side panel.
+            <div className="flex h-full w-full flex-col md:flex-row">
+              <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center">
                 {children}
               </div>
               {showInfoPanel && currentAsset && (
@@ -318,9 +366,9 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
           <AlertDialogOverlay className="!z-[10000]" />
           <AlertDialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[10001] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete asset?</AlertDialogTitle>
+              <AlertDialogTitle>Move to trash?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete{currentAsset ? ` "${currentAsset.originalFileName}"` : " this asset"}. This action cannot be undone.
+                {currentAsset ? `"${currentAsset.originalFileName}"` : "This asset"} goes to Immich&apos;s trash (recoverable there until it&apos;s emptied), not permanent deletion.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -330,10 +378,10 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
                 onClick={async () => {
                   if (currentAsset) {
                     try {
-                      await deleteAssets([currentAsset.id]);
+                      await deleteAssets([currentAsset.id], { force: false }); // Immich trash, NOT permanent
                       setDeletedIds((prev) => new Set(prev).add(currentAsset.id));
                       onDeleteAsset?.(currentAsset.id);
-                      toast({ title: "Deleted", description: `"${currentAsset.originalFileName}" deleted.` });
+                      toast({ title: "Moved to trash", description: `"${currentAsset.originalFileName}" is in Immich's trash.` });
                       setIndex(-1);
                     } catch {
                       toast({ title: "Error", description: "Failed to delete asset.", variant: "destructive" });
@@ -358,17 +406,20 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         onClick={({ index, event, photo }) => handleClick(index, photo, event)}
         render={{
           image: renderImage,
-          extras: (_, { photo }) => (
-            <a
-              href={exImmichUrl + "/photos/" + photo.id}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute bottom-1 left-1 bg-black/60 p-1 rounded"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-white" />
-            </a>
-          ),
+          extras: (_, { photo, index }) =>
+            renderExtras ? (
+              renderExtras(photo, { openPreview: () => setIndex(index) })
+            ) : (
+              <a
+                href={exImmichUrl + "/photos/" + photo.id}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute bottom-1 left-1 bg-black/60 p-1 rounded"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-white" />
+              </a>
+            ),
         }}
       />
     </div>

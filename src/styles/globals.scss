@@ -109,16 +109,6 @@
   opacity: 1;
 }
 
-.leaflet-tile-pane {
-  z-index: 1 !important;
-}
-.leaflet-pane {
-  z-index: 2 !important;
-}
-.leaflet-control-container {
-  z-index: 3 !important;
-}
-
 /* rc-mentions styles for FindInput */
 .rc-mentions {
   flex: 1;
