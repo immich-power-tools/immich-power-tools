@@ -31,7 +31,11 @@ export default async function search(
         .where(inArray(person.id, personIds));
     }
 
-    const url = ENV.IMMICH_URL + "/api/search/smart";
+    // Smart search requires query text; a filter-only search (e.g. "photos
+    // from June 2011") goes to metadata search instead.
+    const url =
+      ENV.IMMICH_URL +
+      (parsedQuery.query ? "/api/search/smart" : "/api/search/metadata");
 
     return fetch(url, {
       method: "POST",

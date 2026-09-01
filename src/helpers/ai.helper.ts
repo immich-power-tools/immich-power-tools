@@ -5,7 +5,7 @@ import { z } from "zod";
 import { removeNullOrUndefinedProperties } from "./data.helper";
 
 interface FindQuery {
-  query: string;
+  query?: string;
   personIds?: string[];
   city?: string;
   country?: string;
@@ -27,7 +27,12 @@ const isDateOnly = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 
 const responseSchema = z.object({
-  query: z.string().describe("Gist of the query. Remove the details of tags"),
+  query: z
+    .string()
+    .nullish()
+    .describe(
+      "Gist of the query. Remove the details of tags. Omit when the query is only filters (dates, people, places, media type)"
+    ),
   personIds: z
     .array(z.string())
     .nullish()
@@ -93,6 +98,8 @@ export const parseFindQuery = async (query: string): Promise<FindQuery> => {
     }),
   });
 
+  console.log(`[ai] parseFindQuery raw response for "${query}":`, text);
+
   const parsedResponse = JSON.parse(text) as FindQuery;
 
   if (parsedResponse.type) {
@@ -125,5 +132,7 @@ export const parseFindQuery = async (query: string): Promise<FindQuery> => {
     parsedResponse.takenBefore = `${parsedResponse.takenBefore}T23:59:59.999Z`;
   }
 
-  return removeNullOrUndefinedProperties(parsedResponse) as any as FindQuery;
+  const filters = removeNullOrUndefinedProperties(parsedResponse) as any as FindQuery;
+  console.log("[ai] parseFindQuery filters:", filters);
+  return filters;
 };
