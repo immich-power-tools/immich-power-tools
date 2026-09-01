@@ -69,7 +69,7 @@ export default function PotentialAlbumsAssets() {
 
   useEffect(() => {
     if (startDate) fetchAssets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [startDate, endDate, tripCity]);
 
   if (loading)

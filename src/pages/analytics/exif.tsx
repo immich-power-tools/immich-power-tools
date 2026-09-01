@@ -16,7 +16,7 @@ import { getAssetStatistics, getLivePhotoStatistics } from "@/handlers/api/analy
 import { humanizeBytes } from "@/helpers/string.helper";
 import {
   Camera,
-  Image,
+  Image as ImageIcon,
   Video,
   Aperture,
   MapPin,
@@ -194,7 +194,7 @@ export default function ExifDataAnalytics() {
             label="Images"
             value={statistics.images}
             loading={loading}
-            icon={<Image className="h-5 w-5" />}
+            icon={<ImageIcon className="h-5 w-5" />}
             accent="bg-emerald-500 text-emerald-600"
           />
           <StatCard

@@ -47,7 +47,7 @@ export default function PotentialAlbumsDates() {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filters, minAssets]);
 
   return (

@@ -9,8 +9,7 @@ import { Calendar } from '../ui/calendar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-// @ts-ignore
-import chrono from 'chrono-node'
+import * as chrono from 'chrono-node'
 
 interface IProps {
   person: IPerson

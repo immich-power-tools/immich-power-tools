@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+ 
 import { ImageProps } from 'next/image'
 import React, { useEffect } from 'react'
 

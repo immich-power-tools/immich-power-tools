@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+ 
 import { humanizeDuration } from '@/helpers/string.helper'
 import { PlayIcon } from '@radix-ui/react-icons'
 import { CircleCheck } from 'lucide-react'
