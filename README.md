@@ -1,6 +1,6 @@
 # ![Logo](./public/favicon-32x32.png) Immich Power Tools
 
-A unofficial immich client to provide better tools to organize and manage your immich account. Building it to speed up your workflows in Immich to organize your people and albums.
+An unofficial immich client to provide better tools to organize and manage your immich account. Building it to speed up your workflows in Immich to organize your people and albums.
 
 > [!IMPORTANT]
 > **Immich v3.0 compatibility:** Power Tools **v0.22.0 and above require Immich 3.0 or newer**.
@@ -33,7 +33,7 @@ Recently I've migrated my entire Google photos library to Immich, I was able to 
 ### 🐬 Using Docker
 
 #### Power-tools is designed to be used alongside Immich, and there are two ways you can run it.
-#### Method 1 - Docker Compose ( Recommended )
+### Method 1 - Docker Compose ( Recommended )
 
 Add the following into your docker compose as a new service along side other immich services. Make sure you've `power-tools` in same network as immich.
 
@@ -73,11 +73,13 @@ AI_API_KEY=your_api_key_here # API key for your OpenAI-compatible provider
 AI_BASE_URL="https://api.openai.com/v1" # e.g. https://api.openai.com/v1 (OpenAI), https://api.groq.com/openai/v1 (Groq), http://host.docker.internal:11434/v1 (Ollama)
 AI_MODEL="gpt-4o-mini" # e.g. gpt-4o-mini, llama-3.1-8b-instant, llama3.1
 ```
-Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
 
-> [!NOTE] When creating the API key, make sure you select all the permissions for the API key.  
+For obtaining **Immich's API Key**, please refer to [Immich's official docs](https://immich.app/docs/features/command-line-interface#obtain-the-api-key).
 
-#### Method 2 - Portainer
+> [!NOTE]
+> When creating the API key, make sure you select all the permissions for the API key.  
+
+### Method 2 - Portainer
 
 If you're using portainer, run the docker using `docker run` and add the power tools to the same network as immich.
 
@@ -112,10 +114,11 @@ Copy paste the `.env.example` to `.env` and fill in the values.
   AI_BASE_URL="https://api.openai.com/v1" # Base URL for OpenAI-compatible API
   AI_MODEL="gpt-4o-mini" # Model used for parsing search queries in "Find"
 ```
-> [!NOTE]  
-> Make sure you have postgres port exposed on you machine.
 
-Refer here for obtaining Immich API Key: https://immich.app/docs/features/command-line-interface#obtain-the-api-key
+> [!NOTE]  
+> If the DB is not accessible, make sure that Postgres' port is exposed on your machine.
+
+For obtaining **Immich's API Key**, please refer to [Immich's official docs](https://immich.app/docs/features/command-line-interface#obtain-the-api-key).
 
 Run the development server:
 
@@ -155,7 +158,7 @@ bun run dev
 - [Shadcn](https://shadcn.com/) for UI Components
 - [Axios](https://axios-http.com/) for API calls
 
-## External Services
+## External Services (OPTIONAL)
 These services are completely optional and you can use the tool without them. Just that they are used for some of the features. But we dont send any personal data to these services.
 
 - [Google Maps](https://maps.google.com/) for heatmap
@@ -164,14 +167,51 @@ Google Maps Javascript API Key is used to render the maps layer for heatmap. Whe
   > Code where heatmap data is plotted: [src/pages/assets/geo-heatmap.tsx:32](./src/pages/assets/geo-heatmap.tsx#L32-L35)
 
 - OpenAI-compatible AI provider for smart query parsing in Find
-Any OpenAI-compatible API can be used for parsing your search query in the "Find" page. You can use standard providers like **OpenAI** and **Groq**, or run local models using **Ollama** or **LM Studio**. We do not send any personal library data to the AI provider; only your search text is sent for parsing. The actual asset querying uses [Immich's Smart Search API](https://immich.app/docs/api/search-smart).
+Any OpenAI-compatible API can be used for parsing your search query in the "Find" page. You can use standard providers like **OpenAI** and **Grok**, or run local models using **Ollama** or **LM Studio**. We do not send any personal library data to the AI provider; only your search text is sent for parsing. The actual asset querying uses [Immich's Smart Search API](https://immich.app/docs/api/search-smart).
 
   > Code where AI parsing is used: [src/helpers/ai.helper.ts](./src/helpers/ai.helper.ts)
 
-  **Examples:**
-  - **OpenAI:** `AI_BASE_URL=https://api.openai.com/v1`, `AI_MODEL=gpt-4o-mini`
-  - **Groq:** `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.1-8b-instant`
-  - **Ollama (local):** `AI_BASE_URL=http://localhost:11434/v1` (or `http://host.docker.internal:11434/v1` if running Power Tools in Docker), `AI_MODEL=llama3.1`
+### Examples for Popular Services
+  Following are examples for connecting to external services for: **OpenAI**, **Grok**, **Gemini** and **Ollama**. Feel free to either copy the example formats below, or enter them manually if you have any other service/model. 
+  
+  Remember to populate `AI_BASE_KEY=` no matter which method you choose.
+
+  1.  **OpenAI (ChatGPT):**
+  
+  ```bash
+  # OpenAI (ChatGPT) - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://api.openai.com/v1"
+  AI_MODEL="gpt-4o-mini"
+  ```
+
+  2. **Grok:**
+  
+  ```bash
+  # Grok - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://api.groq.com/openai/v1"
+  AI_MODEL="llama-3.1-8b-instant"
+  ```
+
+  3. **Gemini:**
+
+  ```bash
+  # Gemini - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+  AI_MODEL="gemini-3-flash-preview"
+  ```
+
+ 4. **Ollama (local):**
+  
+  ```bash
+  # Ollama (local) - AI Configuration for Smart Search (Find)
+  AI_BASE_KEY= # Your services' API-key
+  AI_BASE_URL="http://localhost:11434/v1"
+  # if container is running in Docker, change URL to: http://host.docker.internal:11434/v1
+  AI_MODEL="llama3.1"
+  ```
 
 ## Contributing
 
