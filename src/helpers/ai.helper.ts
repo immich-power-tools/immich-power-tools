@@ -19,6 +19,12 @@ interface FindQuery {
 
 const allowedTypes = ["IMAGE", "VIDEO", "AUDIO"];
 
+// Immich's search API validates takenAfter/takenBefore as full ISO 8601
+// datetimes and rejects a bare YYYY-MM-DD value with
+// `invalid_format` / `format: "datetime"`, so date-only values must be expanded
+// before they reach the API.
+const isDateOnly = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
 
 const responseSchema = z.object({
   query: z.string().describe("Gist of the query. Remove the details of tags"),
@@ -105,6 +111,18 @@ export const parseFindQuery = async (query: string): Promise<FindQuery> => {
   }
   if (parsedResponse.takenBefore && parsedResponse.takenBefore > today) {
     delete parsedResponse.takenBefore;
+  }
+
+  // Expand date-only values into the datetimes Immich expects. This must run
+  // after the guardrail above, which compares plain YYYY-MM-DD strings.
+  // takenBefore uses the end of the day so that a single-day range (e.g.
+  // "videos yesterday", where both bounds are the same date) still covers the
+  // whole day instead of being an empty interval.
+  if (parsedResponse.takenAfter && isDateOnly(parsedResponse.takenAfter)) {
+    parsedResponse.takenAfter = `${parsedResponse.takenAfter}T00:00:00.000Z`;
+  }
+  if (parsedResponse.takenBefore && isDateOnly(parsedResponse.takenBefore)) {
+    parsedResponse.takenBefore = `${parsedResponse.takenBefore}T23:59:59.999Z`;
   }
 
   return removeNullOrUndefinedProperties(parsedResponse) as any as FindQuery;
