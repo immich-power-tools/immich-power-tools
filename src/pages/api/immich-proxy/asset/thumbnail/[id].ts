@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     if (!response.ok) {
-      console.error('HTTP error:', response)
+      console.error('HTTP error:', response.status, await response.text())
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
