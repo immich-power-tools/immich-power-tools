@@ -11,6 +11,12 @@ import { randomUUID } from "crypto";
 
 const PREFIX = "[Workflow]";
 
+// The run result is stored as JSON in workflow_runs.result and only ever used
+// to show thumbnails (max 50 in any view) plus a total count. Persisting every
+// processed asset id made this column reach ~1.6MB/run; store a small sample
+// plus an explicit total instead.
+const RESULT_ASSET_SAMPLE = 50;
+
 function log(runId: string, ...args: any[]) {
   console.log(`${PREFIX} [run:${runId.slice(0, 8)}]`, ...args);
 }
@@ -188,6 +194,7 @@ interface DebugStep {
 
 interface RunResult {
   matchedAssets: number;
+  assetCount: number;
   assetIds: string[];
   actions: any[];
   debug?: DebugStep[];
@@ -241,7 +248,7 @@ export async function executeWorkflow(
 
     log(runId, `Found ${triggerNodes.length} trigger node(s): ${triggerNodes.map(n => n.subType).join(", ")}`);
 
-    const result: RunResult = { matchedAssets: 0, assetIds: [], actions: [] };
+    const result: RunResult = { matchedAssets: 0, assetCount: 0, assetIds: [], actions: [] };
     const debugSteps: DebugStep[] = [];
     const allProcessedAssetIds = new Set<string>();
 
@@ -267,7 +274,7 @@ export async function executeWorkflow(
         label: `Asset Trigger: ${triggerNode.subType}`,
         inputAssets: 0,
         outputAssets: { out: assetIds.length },
-        assetIds: assetIds.slice(0, 100),
+        assetIds: assetIds.slice(0, RESULT_ASSET_SAMPLE),
         detail: `Lookback: ${lookback}m, Found ${assetIds.length} assets`,
       });
 
@@ -321,7 +328,7 @@ export async function executeWorkflow(
             label: `IF (${conditions.length} conditions)`,
             inputAssets: assetIds?.length || 0,
             outputAssets: { true: trueIds.length, false: falseIds.length },
-            assetIds: trueIds.slice(0, 100),
+            assetIds: trueIds.slice(0, RESULT_ASSET_SAMPLE),
             detail: `Matched: ${trueIds.length} true, ${falseIds.length} false`,
           });
 
@@ -396,14 +403,14 @@ export async function executeWorkflow(
           label: `Action: ${node.subType}`,
           inputAssets: actionAssetIds.length,
           outputAssets: {},
-          assetIds: actionAssetIds.slice(0, 100),
+          assetIds: actionAssetIds.slice(0, RESULT_ASSET_SAMPLE),
           detail: isDebug ? `DRY RUN — would process ${actionAssetIds.length} assets` : `Processing ${actionAssetIds.length} assets`,
         });
 
         if (!isDebug && actionAssetIds.length > 0) {
           const actionResult = await executeAction(node.subType, config, actionAssetIds, user);
           log(runId, `ACTION [${node.subType}] completed: ${actionResult.assetsProcessed} processed${actionResult.albumName ? ` → "${actionResult.albumName}"` : ""}${actionResult.error ? ` ERROR: ${actionResult.error}` : ""}`);
-          result.actions.push({ ...actionResult, assetIds: actionAssetIds });
+          result.actions.push({ ...actionResult, assetIds: actionAssetIds.slice(0, RESULT_ASSET_SAMPLE) });
 
           // Record processed assets to prevent reprocessing
           if (actionAssetIds.length > 0) {
@@ -424,9 +431,11 @@ export async function executeWorkflow(
       }
     }
 
-    // Finalize result
-    result.assetIds = Array.from(allProcessedAssetIds);
-    result.matchedAssets = result.assetIds.length;
+    // Finalize result — keep the full count but only a sample of the ids.
+    const allProcessedIds = Array.from(allProcessedAssetIds);
+    result.assetCount = allProcessedIds.length;
+    result.assetIds = allProcessedIds.slice(0, RESULT_ASSET_SAMPLE);
+    result.matchedAssets = allProcessedIds.length;
     result.debug = debugSteps;
 
     // Update run record

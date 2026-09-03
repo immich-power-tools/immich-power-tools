@@ -23,12 +23,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from(workflowNodes)
         .where(eq(workflowNodes.workflowId, w.id));
 
-      const [lastRun] = await appDb
-        .select()
+      const [lastRunRow] = await appDb
+        .select({
+          id: workflowRuns.id,
+          workflowId: workflowRuns.workflowId,
+          trigger: workflowRuns.trigger,
+          status: workflowRuns.status,
+          error: workflowRuns.error,
+          startedAt: workflowRuns.startedAt,
+          completedAt: workflowRuns.completedAt,
+          result: workflowRuns.result,
+        })
         .from(workflowRuns)
         .where(eq(workflowRuns.workflowId, w.id))
         .orderBy(desc(workflowRuns.startedAt))
         .limit(1);
+
+      // The list view only shows the processed-asset count, so strip the rest
+      // of the result JSON before sending it to the client.
+      let lastRun = lastRunRow || null;
+      if (lastRun?.result) {
+        let matchedAssets = 0;
+        try { matchedAssets = JSON.parse(lastRun.result)?.matchedAssets ?? 0; } catch {}
+        lastRun = { ...lastRun, result: JSON.stringify({ matchedAssets }) };
+      }
 
       const [runCountRow] = await appDb
         .select({ count: count() })
