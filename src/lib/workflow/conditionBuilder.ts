@@ -231,19 +231,44 @@ function buildSingleCondition(c: ICondition): SQL | undefined {
     case "not_in_specific_album":
       return sql`NOT EXISTS (SELECT 1 FROM "album_asset" aa WHERE aa."assetId" = ${assets.id} AND aa."albumId" = ${c.albumId})`;
 
-    case "geo_radius":
-      if (c.lat !== undefined && c.lng !== undefined && c.radiusKm) {
-        // Haversine approximation: 1 degree ≈ 111km
-        const latDelta = c.radiusKm / 111;
-        const lngDelta = c.radiusKm / (111 * Math.cos((c.lat * Math.PI) / 180));
-        return and(
-          gte(exif.latitude, c.lat - latDelta),
-          lte(exif.latitude, c.lat + latDelta),
-          gte(exif.longitude, c.lng - lngDelta),
-          lte(exif.longitude, c.lng + lngDelta),
-        )!;
+    case "geo_radius": {
+      const lat = Number(c.lat);
+      const lng = Number(c.lng);
+      const r = Number(c.radiusKm);
+      if (![lat, lng, r].every(Number.isFinite) || r <= 0) return undefined;
+
+      // Exact great-circle (haversine) distance in km. Despite the old
+      // comment, the previous implementation was only the bounding box
+      // below — a square, whose corners reach ~1.41x the requested radius.
+      const distanceKm = sql`(2 * 6371 * asin(sqrt(
+        power(sin(radians(${exif.latitude} - ${lat}) / 2), 2) +
+        cos(radians(${lat})) * cos(radians(${exif.latitude})) *
+        power(sin(radians(${exif.longitude} - ${lng}) / 2), 2)
+      )))`;
+
+      // The box is kept as a cheap, index-friendly pre-filter that the exact
+      // distance then trims to a true circle. It's skipped near the poles and
+      // the antimeridian, where a naive box wraps and would drop real matches.
+      const latDelta = r / 111.045;
+      const cosLat = Math.cos((lat * Math.PI) / 180);
+      const lngDelta = Math.abs(cosLat) < 1e-6 ? 180 : r / (111.045 * Math.abs(cosLat));
+      const boxSafe =
+        lngDelta < 180 &&
+        lng - lngDelta >= -180 && lng + lngDelta <= 180 &&
+        lat - latDelta >= -90 && lat + latDelta <= 90;
+
+      const parts: SQL[] = [];
+      if (boxSafe) {
+        parts.push(
+          gte(exif.latitude, lat - latDelta),
+          lte(exif.latitude, lat + latDelta),
+          gte(exif.longitude, lng - lngDelta),
+          lte(exif.longitude, lng + lngDelta),
+        );
       }
-      return undefined;
+      parts.push(sql`${distanceKm} <= ${r}`);
+      return and(...parts)!;
+    }
 
     default:
       return undefined;
