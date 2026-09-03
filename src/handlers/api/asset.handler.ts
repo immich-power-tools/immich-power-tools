@@ -56,6 +56,10 @@ export interface IUpdateAssetsParams {
   dateTimeOriginal?: string;
   duplicateId?: string | null;
   isFavorite?: boolean;
+  /** Immich's native star rating: 1-5 (starred), -1 (rejected), or null (unrated). */
+  rating?: number | null;
+  /** Immich visibility: "archive" hides from the timeline (reversible), "timeline" restores. */
+  visibility?: "archive" | "timeline";
 }
 
 export const updateAssets = async (params: IUpdateAssetsParams) => {
