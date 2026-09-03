@@ -1,4 +1,4 @@
-import { ICondition } from "@/types/workflow";
+import { ICondition, IConditionMatch } from "@/types/workflow";
 import ConditionEditor from "./ConditionEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ interface SwitchCase {
   label: string;
   conditions: ICondition[];
   handle: string;
+  match?: IConditionMatch;
 }
 
 interface SwitchConfigProps {
@@ -59,6 +60,8 @@ export default function SwitchConfig({ config, onChange }: SwitchConfigProps) {
           <ConditionEditor
             conditions={c.conditions}
             onChange={(conditions) => updateCase(i, { conditions })}
+            match={c.match ?? "all"}
+            onMatchChange={(m) => updateCase(i, { match: m })}
           />
         </div>
       ))}

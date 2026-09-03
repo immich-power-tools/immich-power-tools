@@ -3,10 +3,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { ICondition, ConditionType } from "@/types/workflow";
+import { ICondition, ConditionType, IConditionMatch } from "@/types/workflow";
 import { Plus, X, Check, Tag } from "lucide-react";
 import { listPeople } from "@/handlers/api/people.handler";
 import { listTags, ITag } from "@/handlers/api/tag.handler";
+import { listAlbums } from "@/handlers/api/album.handler";
+import { IAlbum } from "@/types/album";
 import { IPerson } from "@/types/person";
 import { PERSON_THUBNAIL_PATH } from "@/config/routes";
 import { useEffect, useState } from "react";
@@ -37,11 +39,67 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   file_extension: "File Extension",
   face_count: "Face Count",
   time_of_day: "Time of Day",
+  album: "Album",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
 
-const conditionTypes = Object.keys(conditionTypeLabels) as ConditionType[];
+// Superseded by the "Album" condition, which covers both directions and picks
+// the album from a list instead of asking for a raw id. Still evaluated so
+// workflows saved before it existed keep working — it's just no longer offered
+// for new conditions (see conditionTypesFor).
+const LEGACY_CONDITION_TYPES: ConditionType[] = ["not_in_specific_album"];
+
+const conditionTypes = (Object.keys(conditionTypeLabels) as ConditionType[])
+  .filter((t) => !LEGACY_CONDITION_TYPES.includes(t))
+  .sort((a, b) => conditionTypeLabels[a].localeCompare(conditionTypeLabels[b]));
+
+/** The dropdown list, plus the current value when it's a legacy type — without
+ *  this the Select would render blank for an existing legacy condition. */
+const conditionTypesFor = (current: ConditionType): ConditionType[] =>
+  LEGACY_CONDITION_TYPES.includes(current) ? [...conditionTypes, current] : conditionTypes;
+
+/** Single-album chooser — albums are listed by name rather than asking the
+ *  user to paste an album id (which is what the legacy condition did). The
+ *  name is stored alongside the id so the node summary can read back
+ *  "Album in: Holidays" without re-fetching, same as the person/tag pickers. */
+function AlbumSelect({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (albumId: string, albumName: string) => void;
+}) {
+  const [albums, setAlbums] = useState<IAlbum[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    listAlbums()
+      .then((res) => setAlbums(res || []))
+      .catch(() => setAlbums([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <Select
+      value={value || ""}
+      onValueChange={(id) => onChange(id, albums.find((a) => a.id === id)?.albumName || "")}
+    >
+      <SelectTrigger className="h-7 text-xs">
+        <SelectValue placeholder={loading ? "Loading albums…" : "Choose an album…"} />
+      </SelectTrigger>
+      <SelectContent>
+        {albums.map((a) => (
+          <SelectItem key={a.id} value={a.id} className="text-xs">
+            {a.albumName}
+            {typeof a.assetCount === "number" ? ` (${a.assetCount})` : ""}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 interface PersonPickerProps {
   selectedIds: string[];
@@ -224,6 +282,10 @@ function TagPicker({ selectedIds, onChange }: TagPickerProps) {
 interface ConditionEditorProps {
   conditions: ICondition[];
   onChange: (conditions: ICondition[]) => void;
+  /** ALL (AND, the default) or ANY (OR). Omit onMatchChange to keep the
+   *  control hidden and the behavior pinned to ALL. */
+  match?: IConditionMatch;
+  onMatchChange?: (match: IConditionMatch) => void;
 }
 
 function ConditionFields({ condition, onChange }: { condition: ICondition; onChange: (c: ICondition) => void }) {
@@ -421,6 +483,13 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
     case "geo_radius":
       return (
         <div className="space-y-1">
+          <Select value={condition.match || "inside"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inside">Inside radius</SelectItem>
+              <SelectItem value="outside">Outside radius</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex gap-2">
             <Input className="h-7 text-xs" type="number" step="any" placeholder="Latitude" value={condition.lat ?? ""} onChange={(e) => onChange({ ...condition, lat: parseFloat(e.target.value) || 0 })} />
             <Input className="h-7 text-xs" type="number" step="any" placeholder="Longitude" value={condition.lng ?? ""} onChange={(e) => onChange({ ...condition, lng: parseFloat(e.target.value) || 0 })} />
@@ -429,6 +498,22 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
             <Input className="h-7 text-xs w-20" type="number" min={1} placeholder="Radius" value={condition.radiusKm ?? ""} onChange={(e) => onChange({ ...condition, radiusKm: parseFloat(e.target.value) || 0 })} />
             <span className="text-xs text-muted-foreground">km</span>
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            True distance from the point. Photos without GPS match neither direction.
+          </p>
+        </div>
+      );
+    case "album":
+      return (
+        <div className="space-y-1">
+          <Select value={condition.match || "in"} onValueChange={(v) => onChange({ ...condition, match: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="in">Is in album</SelectItem>
+              <SelectItem value="not_in">Is not in album</SelectItem>
+            </SelectContent>
+          </Select>
+          <AlbumSelect value={condition.albumId} onChange={(albumId, albumName) => onChange({ ...condition, albumId, albumName })} />
         </div>
       );
     case "day_of_week":
@@ -457,13 +542,13 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
     case "person_unnamed":
       return null;
     case "not_in_specific_album":
-      return <Input className="h-7 text-xs" placeholder="Album ID" value={condition.albumId || ""} onChange={(e) => onChange({ ...condition, albumId: e.target.value })} />;
+      return <AlbumSelect value={condition.albumId} onChange={(albumId, albumName) => onChange({ ...condition, albumId, albumName })} />;
     default:
       return null;
   }
 }
 
-export default function ConditionEditor({ conditions, onChange }: ConditionEditorProps) {
+export default function ConditionEditor({ conditions, onChange, match = "all", onMatchChange }: ConditionEditorProps) {
   const addCondition = () => {
     onChange([...conditions, { type: "city" }]);
   };
@@ -486,13 +571,26 @@ export default function ConditionEditor({ conditions, onChange }: ConditionEdito
 
   return (
     <div className="space-y-2">
+      {conditions.length > 1 && onMatchChange && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Match</span>
+          <Select value={match} onValueChange={(v) => onMatchChange(v as IConditionMatch)}>
+            <SelectTrigger className="h-6 w-[68px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">ALL</SelectItem>
+              <SelectItem value="any" className="text-xs">ANY</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">of these</span>
+        </div>
+      )}
       {conditions.map((condition, i) => (
         <div key={i} className="p-2 border rounded space-y-2 bg-muted/30">
           <div className="flex items-center gap-1">
             <Select value={condition.type} onValueChange={(v) => changeType(i, v as ConditionType)}>
               <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {conditionTypes.map((t) => (
+                {conditionTypesFor(condition.type).map((t) => (
                   <SelectItem key={t} value={t}>{conditionTypeLabels[t]}</SelectItem>
                 ))}
               </SelectContent>
@@ -504,7 +602,9 @@ export default function ConditionEditor({ conditions, onChange }: ConditionEdito
           <ConditionFields condition={condition} onChange={(c) => updateCondition(i, c)} />
           {i < conditions.length - 1 && (
             <div className="text-center">
-              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">AND</span>
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                {match === "any" ? "OR" : "AND"}
+              </span>
             </div>
           )}
         </div>

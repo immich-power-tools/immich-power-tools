@@ -57,6 +57,7 @@ export type ConditionType =
   | "rating" | "is_favorited" | "resolution"
   | "file_size" | "filename" | "file_extension"
   | "face_count" | "time_of_day"
+  | "album"
   | "not_in_album" | "not_in_specific_album";
 
 export interface ICondition {
@@ -64,12 +65,16 @@ export interface ICondition {
   [key: string]: any;
 }
 
+/** How a node's condition list is combined. "all" = AND (default, and the
+ *  historical behavior for nodes saved before this existed), "any" = OR. */
+export type IConditionMatch = "all" | "any";
+
 export interface IManualTriggerData {}
 export interface IScheduleTriggerData { cron: string; }
 export interface IWebhookTriggerData { token: string; }
 
-export interface IIfNodeData { conditions: ICondition[]; }
-export interface ISwitchCase { label: string; conditions: ICondition[]; handle: string; }
+export interface IIfNodeData { conditions: ICondition[]; match?: IConditionMatch; }
+export interface ISwitchCase { label: string; conditions: ICondition[]; handle: string; match?: IConditionMatch; }
 export interface ISwitchNodeData { cases: ISwitchCase[]; }
 
 export interface ICreateAlbumActionData { nameTemplate: string; }

@@ -25,6 +25,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   file_extension: "Extension",
   face_count: "Faces",
   time_of_day: "Time of Day",
+  album: "Album",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
 };
@@ -68,7 +69,8 @@ export function formatConditionSummary(c: ICondition): string {
     }
     case "geo_radius": {
       if (c.lat != null && c.lng != null) {
-        return `${label}: ${c.lat}, ${c.lng} (${c.radiusKm || "?"}km)`;
+        const dir = c.match === "outside" ? "outside" : "inside";
+        return `${label} ${dir}: ${c.lat}, ${c.lng} (${c.radiusKm || "?"}km)`;
       }
       return label;
     }
@@ -149,8 +151,15 @@ export function formatConditionSummary(c: ICondition): string {
     }
     case "not_in_album":
       return label;
-    case "not_in_specific_album":
-      return c.albumId ? `${label}: ${c.albumId}` : label;
+    case "album": {
+      const dir = c.match === "not_in" ? "not in" : "in";
+      const name = c.albumName || c.albumId;
+      return name ? `${label} ${dir}: ${name}` : `${label}: (none selected)`;
+    }
+    case "not_in_specific_album": {
+      const name = c.albumName || c.albumId;
+      return name ? `${label}: ${name}` : label;
+    }
     default:
       return label;
   }
