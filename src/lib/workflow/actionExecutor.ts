@@ -9,6 +9,7 @@ import { assetFaces } from "@/schema/assetFaces.schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { IUser } from "@/types/user";
 import { getUserHeaders } from "@/helpers/user.helper";
+import { resolveTemplateString, getPath } from "./templating";
 
 export const WORKFLOW_API_KEY_SETTING = "workflow_api_key";
 
@@ -18,6 +19,9 @@ interface ActionResult {
   albumId?: string;
   albumName?: string;
   error?: string;
+  succeeded?: number;
+  failed?: number;
+  sampleErrors?: string[];
 }
 
 async function getWorkflowApiKey(ownerId: string): Promise<string | null> {
@@ -214,4 +218,123 @@ export async function executeAction(
     default:
       return { action: subType, assetsProcessed: 0, error: `Unknown action: ${subType}` };
   }
+}
+
+// Batch-load per-asset metadata for template interpolation. Keys mirror the
+// tokens documented for the HTTP node: assetId, filename, type, city, state,
+// country, camera, dateTaken, latitude, longitude, rating, person.
+async function loadAssetData(assetIds: string[]): Promise<Map<string, Record<string, any>>> {
+  const map = new Map<string, Record<string, any>>();
+  if (assetIds.length === 0) return map;
+  const BATCH = 5000;
+  for (let i = 0; i < assetIds.length; i += BATCH) {
+    const chunk = assetIds.slice(i, i + BATCH);
+    const rows = await db
+      .select({
+        id: assets.id,
+        filename: assets.originalFileName,
+        type: assets.type,
+        rating: exif.rating,
+        city: exif.city,
+        state: exif.state,
+        country: exif.country,
+        make: exif.make,
+        model: exif.model,
+        dateTaken: exif.dateTimeOriginal,
+        latitude: exif.latitude,
+        longitude: exif.longitude,
+      })
+      .from(assets)
+      .leftJoin(exif, eq(assets.id, exif.assetId))
+      .where(inArray(assets.id, chunk));
+    for (const r of rows) {
+      map.set(r.id, {
+        assetId: r.id,
+        filename: r.filename,
+        type: r.type,
+        city: r.city ?? "",
+        state: r.state ?? "",
+        country: r.country ?? "",
+        camera: [r.make, r.model].filter(Boolean).join(" "),
+        dateTaken: r.dateTaken ? new Date(r.dateTaken).toISOString() : "",
+        latitude: r.latitude ?? "",
+        longitude: r.longitude ?? "",
+        rating: r.rating ?? "",
+        person: "",
+      });
+    }
+    const faces = await db
+      .select({ assetId: assetFaces.assetId, name: person.name })
+      .from(assetFaces)
+      .innerJoin(person, eq(assetFaces.personId, person.id))
+      .where(inArray(assetFaces.assetId, chunk));
+    for (const f of faces) {
+      const entry = map.get(f.assetId);
+      if (entry && f.name && !entry.person) entry.person = f.name;
+    }
+  }
+  return map;
+}
+
+// One HTTP request per asset, bounded concurrency + per-request timeout. Never
+// throws on a single asset's failure; collects succeeded/failed counts. When
+// config.saveAs is set, stores the (optionally path-extracted) response per
+// asset in the returned `variables` map.
+export async function executeHttpRequest(
+  config: any,
+  assetIds: string[],
+  context: Map<string, Record<string, any>>,
+  _user: IUser
+): Promise<{ result: ActionResult; variables: Map<string, any> }> {
+  const variables = new Map<string, any>();
+  const timeoutMs = (config.timeoutSeconds && config.timeoutSeconds > 0 ? config.timeoutSeconds : 10) * 1000;
+  const concurrency = 5;
+  const headers: { key: string; value: string }[] = Array.isArray(config.headers) ? config.headers : [];
+  const method = String(config.method || "POST").toUpperCase();
+  const assetData = await loadAssetData(assetIds);
+
+  let succeeded = 0;
+  let failed = 0;
+  const sampleErrors: string[] = [];
+
+  const runOne = async (assetId: string) => {
+    const bag = { ...(assetData.get(assetId) || {}), ...(context.get(assetId) || {}) };
+    const url = resolveTemplateString(config.url || "", bag);
+    const hdrs: Record<string, string> = {};
+    for (const h of headers) {
+      if (h && h.key) hdrs[h.key] = resolveTemplateString(h.value || "", bag);
+    }
+    const body = method === "GET" || method === "DELETE" ? undefined : resolveTemplateString(config.body || "", bag);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { method, headers: hdrs, body, redirect: "manual", signal: controller.signal });
+      if (config.saveAs) {
+        const text = await res.text();
+        let parsed: any = text;
+        try { parsed = JSON.parse(text); } catch { /* keep as text */ }
+        variables.set(assetId, getPath(parsed, config.extractPath));
+      }
+      if (res.ok) {
+        succeeded++;
+      } else {
+        failed++;
+        if (sampleErrors.length < 5) sampleErrors.push(`${assetId.slice(0, 8)}: HTTP ${res.status}`);
+      }
+    } catch (e: any) {
+      failed++;
+      if (sampleErrors.length < 5) sampleErrors.push(`${assetId.slice(0, 8)}: ${e?.name === "AbortError" ? "timeout" : (e?.message || "error")}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  for (let i = 0; i < assetIds.length; i += concurrency) {
+    await Promise.all(assetIds.slice(i, i + concurrency).map(runOne));
+  }
+
+  return {
+    result: { action: "http_request", assetsProcessed: assetIds.length, succeeded, failed, sampleErrors },
+    variables,
+  };
 }

@@ -22,7 +22,7 @@ import API from "@/lib/api";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import {
   FilePlus, FileEdit, Database, GitBranch, GitFork,
-  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag,
+  FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Tags, Star, UserCheck, Webhook,
 } from "lucide-react";
 
 // ---- Annotated Node Components (read-only, with run data) ----
@@ -30,8 +30,8 @@ import {
 function AnnotatedTriggerNode({ data, selected }: NodeProps) {
   const subType = data.subType as string;
   const step = data.runStep as any;
-  const icons: Record<string, any> = { new_asset: FilePlus, asset_updated: FileEdit, all_assets: Database };
-  const labels: Record<string, string> = { new_asset: "New Asset", asset_updated: "Asset Updated", all_assets: "All Assets" };
+  const icons: Record<string, any> = { new_asset: FilePlus, asset_updated: FileEdit, all_assets: Database, person_named: UserCheck, album_added: FolderInput, favorited: Heart, rating_changed: Star, tag_added: Tags };
+  const labels: Record<string, string> = { new_asset: "New Asset", asset_updated: "Asset Updated", all_assets: "All Assets", person_named: "Person Named", album_added: "Added to Album", favorited: "Favorited", rating_changed: "Rating Changed", tag_added: "Tag Added" };
   const Icon = icons[subType] || FilePlus;
 
   return (
@@ -135,11 +135,11 @@ function AnnotatedActionNode({ data }: NodeProps) {
   const step = data.runStep as any;
   const icons: Record<string, any> = {
     create_album: FolderPlus, add_to_album: FolderInput, remove_from_album: FolderMinus,
-    favorite: Heart, unfavorite: HeartOff, archive: Archive, tag: Tag, remove_tag: Tag,
+    favorite: Heart, unfavorite: HeartOff, archive: Archive, tag: Tag, remove_tag: Tag, http_request: Webhook,
   };
   const labels: Record<string, string> = {
     create_album: "Create Album", add_to_album: "Add to Album", remove_from_album: "Remove from Album",
-    favorite: "Favorite", unfavorite: "Unfavorite", archive: "Archive", tag: "Add Tag", remove_tag: "Remove Tag",
+    favorite: "Favorite", unfavorite: "Unfavorite", archive: "Archive", tag: "Add Tag", remove_tag: "Remove Tag", http_request: "HTTP Call",
   };
   const Icon = icons[subType] || FolderPlus;
   const isDryRun = step?.detail?.includes("DRY RUN");

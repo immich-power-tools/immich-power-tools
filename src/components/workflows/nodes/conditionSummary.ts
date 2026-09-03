@@ -27,6 +27,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
+  variable: "Variable",
 };
 
 const matchLabels: Record<string, string> = {
@@ -151,6 +152,14 @@ export function formatConditionSummary(c: ICondition): string {
       return label;
     case "not_in_specific_album":
       return c.albumId ? `${label}: ${c.albumId}` : label;
+    case "variable": {
+      const target = c.path ? `${c.name}.${c.path}` : (c.name || "?");
+      if (c.operator === "exists" || c.operator === "not_exists") {
+        return `${target} ${c.operator === "exists" ? "exists" : "missing"}`;
+      }
+      const ops: Record<string, string> = { equals: "=", not_equals: "≠", contains: "⊇", greater_than: ">", less_than: "<" };
+      return `${target} ${ops[c.operator] || c.operator || "?"} ${c.value ?? ""}`;
+    }
     default:
       return label;
   }

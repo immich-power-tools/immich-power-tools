@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
 import { listAlbums } from "@/handlers/api/album.handler";
 import { IAlbum } from "@/types/album";
 import { useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Plus, X } from "lucide-react";
 
 interface ActionConfigProps {
   subType: string;
@@ -142,6 +146,68 @@ export default function ActionConfig({ subType, config, onChange }: ActionConfig
         {subType === "remove_tag" && (
           <p className="text-[10px] text-muted-foreground">Removes this tag from matched assets. If the tag doesn&apos;t exist, nothing happens.</p>
         )}
+      </div>
+    );
+  }
+
+  if (subType === "http_request") {
+    const headers: { key: string; value: string }[] = config.headers || [];
+    const setHeader = (i: number, patch: Partial<{ key: string; value: string }>) => {
+      const next = headers.map((h, idx) => (idx === i ? { ...h, ...patch } : h));
+      onChange({ ...config, headers: next });
+    };
+    return (
+      <div className="space-y-2">
+        <Label className="text-xs">Method &amp; URL</Label>
+        <div className="flex gap-2">
+          <Select value={config.method || "POST"} onValueChange={(v) => onChange({ ...config, method: v })}>
+            <SelectTrigger className="h-8 text-xs w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input className="h-8 text-sm flex-1" placeholder="https://api.example.com/{assetId}" value={config.url || ""} onChange={(e) => onChange({ ...config, url: e.target.value })} />
+        </div>
+
+        <Label className="text-xs">Headers</Label>
+        {headers.map((h, i) => (
+          <div key={i} className="flex gap-1">
+            <Input className="h-7 text-xs" placeholder="Header" value={h.key} onChange={(e) => setHeader(i, { key: e.target.value })} />
+            <Input className="h-7 text-xs" placeholder="Value" value={h.value} onChange={(e) => setHeader(i, { value: e.target.value })} />
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onChange({ ...config, headers: headers.filter((_, idx) => idx !== i) })}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={() => onChange({ ...config, headers: [...headers, { key: "", value: "" }] })}>
+          <Plus className="h-3 w-3 mr-1" /> Add Header
+        </Button>
+
+        <Label className="text-xs">Body</Label>
+        <Textarea className="text-xs font-mono min-h-[80px]" placeholder={'{"id": "{assetId}"}'} value={config.body || ""} onChange={(e) => onChange({ ...config, body: e.target.value })} />
+        <div className="flex flex-wrap gap-1">
+          {["{assetId}", "{filename}", "{city}", "{dateTaken}", "{person}", "{camera}"].map((v) => (
+            <Badge key={v} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted" onClick={() => onChange({ ...config, body: (config.body || "") + v })}>{v}</Badge>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground">Also use a saved variable as <code>{'{name.field}'}</code> in the URL, headers, or body.</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Save response as</Label>
+            <Input className="h-7 text-xs" placeholder="e.g. resp" value={config.saveAs || ""} onChange={(e) => onChange({ ...config, saveAs: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Extract path</Label>
+            <Input className="h-7 text-xs" placeholder="e.g. data.0.id" value={config.extractPath || ""} onChange={(e) => onChange({ ...config, extractPath: e.target.value })} />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Timeout (seconds)</Label>
+          <Input className="h-7 text-xs w-24" type="number" min={1} placeholder="10" value={config.timeoutSeconds ?? ""} onChange={(e) => onChange({ ...config, timeoutSeconds: parseInt(e.target.value) || undefined })} />
+        </div>
       </div>
     );
   }
