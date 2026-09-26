@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, unique } from "drizzle-orm/sqlite-core";
 import { randomUUID } from "crypto";
 
 export const workflows = sqliteTable("workflows", {
@@ -53,4 +53,8 @@ export const workflowProcessedAssets = sqliteTable("workflow_processed_assets", 
   assetId: text("asset_id").notNull(),
   runId: text("run_id").notNull().references(() => workflowRuns.id, { onDelete: "cascade" }),
   processedAt: integer("processed_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-});
+}, (t) => [
+  // One row per workflow/asset: runs upsert this rather than appending, so the
+  // table stays bounded by library size instead of growing with every run.
+  unique().on(t.workflowId, t.assetId),
+]);
