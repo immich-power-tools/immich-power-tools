@@ -2,7 +2,6 @@ import {
   ASSET_ALBUMS_BY_ASSETS_PATH,
   ASSET_GEO_HEATMAP_PATH,
   LIST_EMPTY_VIDEOS_PATH,
-  FIND_ASSETS,
   LIST_MISSING_LOCATION_ALBUMS_PATH,
   LIST_MISSING_LOCATION_ASSETS_PATH,
   LIST_MISSING_LOCATION_DATES_PATH,
@@ -62,10 +61,6 @@ export const updateAssets = async (params: IUpdateAssetsParams) => {
   return API.put(UPDATE_ASSETS_PATH, params);
 }
   
-
-export const findAssets = async (query: string) => {
-  return API.post(FIND_ASSETS, { query });
-}
 
 export interface IHeatMapParams {
   albumIds?: string;

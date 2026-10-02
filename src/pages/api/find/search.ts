@@ -1,90 +1,66 @@
-import { db } from "@/config/db";
-import { ENV } from "@/config/environment";
-import { ASSET_VIDEO_PATH } from "@/config/routes";
 import { getCurrentUser } from "@/handlers/serverUtils/user.utils";
-import { cleanUpAsset, isFlipped } from "@/helpers/asset.helper";
-import { parseFindQuery } from "@/helpers/ai.helper";
-import { getUserHeaders } from "@/helpers/user.helper";
-import { person } from "@/schema";
-import { Person } from "@/schema/person.schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { FindQuery, parseFindQuery, sanitizeFindQuery } from "@/helpers/ai.helper";
+import { resolveFindQuery, runFindQuery } from "@/helpers/find.helper";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function search(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  let parsedQuery: FindQuery = {};
   try {
-    const { query } = req.body;
+    // `filters` re-runs a search the user tweaked by hand (no AI involved),
+    // `previous` lets a follow-up like "only videos" refine the last search.
+    const { query, filters, previous } = req.body as {
+      query?: string;
+      filters?: FindQuery;
+      previous?: FindQuery;
+    };
     const currentUser = await getCurrentUser(req);
     if (!currentUser) {
-      return res.status(403).json({ message: "Not authenticated" });
-    }
-    const parsedQuery = await parseFindQuery(query as string);
-    const { personIds } = parsedQuery;
-
-    let dbPeople: Person[] = [];
-    if (personIds) {
-      dbPeople = await db
-        .select()
-        .from(person)
-        .where(and(
-          inArray(person.personGroupId, personIds),
-          eq(person.ownerId, currentUser.id),
-        ));
+      res.status(403).json({ message: "Not authenticated" });
+      return;
     }
 
-    // Smart search requires query text; a filter-only search (e.g. "photos
-    // from June 2011") goes to metadata search instead.
-    const url =
-      ENV.IMMICH_URL +
-      (parsedQuery.query ? "/api/search/smart" : "/api/search/metadata");
+    // Streamed as newline-delimited JSON so the model's thinking (when a
+    // provider sends any) can reach the browser as it's produced, rather than
+    // after the whole parse — some queries take tens of seconds end to end.
+    res.writeHead(200, {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    });
+    const send = (line: Record<string, unknown>) => res.write(JSON.stringify(line) + "\n");
 
-    return fetch(url, {
-      method: "POST",
-      body: JSON.stringify({ ...parsedQuery, withExif: true }),
-      headers: getUserHeaders(currentUser, { "Content-Type": "application/json" }),
-    })
-      .then((response) => {
-        if (response.status !== 200) {
-          return res.json({
-            assets: [],
-            filters: parsedQuery,
-            error: "Failed to fetch assets",
-            errorData: response.json(),
-          });
-        }
-        return response.json();
-      })
-      .then((data) => {
-        const items = data.assets.items
-          .map((item: any) => {
-            return {
-              ...item,
-              exifImageHeight: isFlipped(item?.exifInfo?.orientation)
-                ? item?.exifInfo?.exifImageWidth
-                : item?.exifInfo?.exifImageHeight,
-              exifImageWidth: isFlipped(item?.exifInfo?.orientation)
-                ? item?.exifInfo?.exifImageHeight
-                : item?.exifInfo?.exifImageWidth,
-              orientation: item?.exifInfo?.orientation,
-              downloadUrl: ASSET_VIDEO_PATH(item.id),
-            };
-          })
-          .map(cleanUpAsset);
-        res.status(200).json({
-          assets: items,
-          filters: {
-            ...parsedQuery,
-            personIds: dbPeople.map((person) => person.name),
-          },
-        });
-      })
-      .catch((err) => {
-        res.status(500).json({ message: err.message });
-      });
+    if (filters) {
+      parsedQuery = sanitizeFindQuery(filters);
+    } else {
+      parsedQuery = await parseFindQuery(query as string, previous, (text) => send({ type: "thinking", text }));
+    }
+
+    const resolution = await resolveFindQuery(currentUser, parsedQuery);
+    const { assets, total, notes } = await runFindQuery(currentUser, resolution);
+
+    send({
+      type: "result",
+      assets,
+      total,
+      notes,
+      filters: resolution.filters,
+      labels: resolution.labels,
+      alternatives: resolution.alternatives,
+    });
+    res.end();
   } catch (err: any) {
     console.error(err);
-    res.status(500).json({ message: err.message || "Failed to parse query" });
+    const payload = { assets: [], filters: parsedQuery, error: err.message || "Failed to fetch assets" };
+    // Headers already sent once streaming starts, so a late failure (e.g. the
+    // Immich request) has to end the stream with a result line instead.
+    if (res.headersSent) {
+      res.write(JSON.stringify({ type: "result", ...payload }) + "\n");
+      res.end();
+      return;
+    }
+    res.status(200).json(payload);
   }
 }

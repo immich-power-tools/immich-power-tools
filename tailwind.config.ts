@@ -63,6 +63,52 @@ const config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		keyframes: {
+  			'fade-in-up': {
+  				from: {
+  					opacity: '0',
+  					transform: 'translateY(12px)'
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'pop-in': {
+  				from: {
+  					opacity: '0',
+  					transform: 'scale(0.9)'
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
+  			'thinking-dot': {
+  				'0%, 60%, 100%': {
+  					transform: 'translateY(0)',
+  					opacity: '0.4'
+  				},
+  				'30%': {
+  					transform: 'translateY(-4px)',
+  					opacity: '1'
+  				}
+  			},
+  			shimmer: {
+  				from: {
+  					backgroundPosition: '200% 0'
+  				},
+  				to: {
+  					backgroundPosition: '-200% 0'
+  				}
+  			},
+  			'float-slow': {
+  				'0%, 100%': {
+  					transform: 'translateY(0)'
+  				},
+  				'50%': {
+  					transform: 'translateY(-8px)'
+  				}
+  			},
   			'accordion-down': {
   				from: {
   					height: '0'
@@ -81,6 +127,11 @@ const config = {
   			}
   		},
   		animation: {
+  			'fade-in-up': 'fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
+  			'pop-in': 'pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both',
+  			'thinking-dot': 'thinking-dot 1.2s ease-in-out infinite',
+  			shimmer: 'shimmer 2.5s linear infinite',
+  			'float-slow': 'float-slow 5s ease-in-out infinite',
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
   		}

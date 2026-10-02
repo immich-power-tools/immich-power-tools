@@ -166,6 +166,10 @@
   color: hsl(var(--muted-foreground));
 }
 
+.rc-mentions > textarea:disabled {
+  cursor: not-allowed;
+}
+
 .rc-mentions-dropdown {
   position: absolute;
   z-index: 50;
