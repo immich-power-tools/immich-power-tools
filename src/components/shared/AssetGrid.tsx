@@ -150,7 +150,11 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
   };
 
   const handleClick = (index: number, asset: AssetPhoto, event: React.MouseEvent) => {
-    if (selectable && (event.metaKey || event.ctrlKey || selectedIds.length > 0)) {
+    // shiftKey lets the user enter selection mode from zero (start a range
+    // even when nothing is selected yet). Without it, the first click has
+    // no entry point to selection because the floating "Select all" bar
+    // only appears after something is already selected.
+    if (selectable && (event.metaKey || event.ctrlKey || event.shiftKey || selectedIds.length > 0)) {
       handleSelect(index, asset, event);
     } else {
       setIndex(index);
