@@ -77,6 +77,46 @@ Refer here for obtaining Immich API Key: https://immich.app/docs/features/comman
 
 > [!NOTE] When creating the API key, make sure you select all the permissions for the API key.  
 
+### Optional: Missing Originals Tool
+
+The Missing Originals tool scans Immich asset records and checks whether each `originalPath` still exists on disk. To use it, mount your Immich upload location into the Power Tools container as read-only and enable the feature explicitly.
+
+```yaml
+services:
+  power-tools:
+    volumes:
+      - immich-power-tools-data:/app/data
+      - ${UPLOAD_LOCATION}:/mnt/immich-upload:ro
+```
+
+```env
+MISSING_ORIGINALS_ENABLED=true
+```
+
+The tool only reads the mounted upload path. It automatically scans common internal Immich upload prefixes like `/data` and `/usr/src/app/upload`, and it ignores external libraries. It does not alter Immich Postgres directly. Confirmed missing asset records are moved to Immich Trash through the Immich API.
+
+The scan follows the rest of Power Tools' ownership model: it checks only the authenticated Immich user's active, non-external assets. Admin users and admin API keys are still scoped to their own uploaded assets.
+
+Optional configuration:
+
+```env
+# Required to show and use the tool.
+MISSING_ORIGINALS_ENABLED=true
+
+# Optional. Use when Immich stores originals under a custom internal container prefix.
+# Common values are /data or /usr/src/app/upload.
+MISSING_ORIGINALS_DB_PREFIX=/data
+
+# Optional. Use when the upload location is mounted somewhere other than /mnt/immich-upload.
+MISSING_ORIGINALS_SCAN_ROOT=/mnt/immich-upload
+
+# Optional. Stops trash actions when the missing count is above this percent of eligible assets.
+MISSING_ORIGINALS_MAX_MISSING_PERCENT=20
+
+# Optional. Number of concurrent file existence checks during a scan.
+MISSING_ORIGINALS_CONCURRENCY=64
+```
+
 #### Method 2 - Portainer
 
 If you're using portainer, run the docker using `docker run` and add the power tools to the same network as immich.
