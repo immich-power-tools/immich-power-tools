@@ -26,6 +26,9 @@ export default function PeopleList() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cols, setCols] = useState<number>(6);
   const [filters, setFilters] = useState<IPersonListFilters>({
+    // Hidden people are hidden for a reason — don't surface them until asked.
+    // Listed before router.query so a ?visibility= in the URL still wins.
+    visibility: "visible",
     ...router.query,
     page: 1,
   });
