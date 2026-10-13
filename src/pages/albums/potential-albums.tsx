@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import PhotoSelectionContext, { IPhotoSelectionContext } from "@/contexts/PhotoSelectionContext";
 import { addAssetToAlbum, createAlbum, IPotentialTrip } from "@/handlers/api/album.handler";
@@ -21,7 +21,6 @@ import { useRouter } from "next/router";
 import React, { useMemo } from "react";
 
 export default function PotentialAlbums() {
-  const { toast } = useToast();
   const { id } = useCurrentUser();
 
   const { query } = useRouter();
@@ -57,17 +56,10 @@ export default function PotentialAlbums() {
         updateContext({ selectedIds: [], assets: newAssets });
       })
       .then(() => {
-        toast({
-          title: `Assets added to ${album.albumName}`,
-          description: `${contextState.selectedIds.length} assets added to album`,
-        });
+        toast.success(`Assets added to ${album.albumName}`, { description: `${contextState.selectedIds.length} assets added to album` });
       })
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Failed to add assets album",
-          variant: "destructive",
-        });
+        toast.error("Failed to add assets album");
       });
   };
 
@@ -76,10 +68,7 @@ export default function PotentialAlbums() {
       ...formData,
       assetIds: contextState.selectedIds,
     }).then(() => {
-      toast({
-        title: "Album created",
-        description: "Album created successfully",
-      });
+      toast.success("Album created");
       const newAssets = contextState.assets.filter(a => !contextState.selectedIds.includes(a.id));
       updateContext({ selectedIds: [], assets: newAssets });
     }).catch((error) => {
@@ -94,17 +83,10 @@ export default function PotentialAlbums() {
         updateContext({ selectedIds: [], assets: newAssets });
       })
       .then(() => {
-        toast({
-          title: "Assets deleted",
-          description: "Assets deleted successfully",
-        });
+        toast.success("Assets deleted");
       })
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Failed to delete assets",
-          variant: "destructive",
-        });
+        toast.error("Failed to delete assets");
       });
   }
 

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { addRecentSearch } from "@/lib/utils";
 import { IPlace } from "@/types/common";
 import React, { useEffect, useMemo, useState } from "react";
@@ -24,7 +24,6 @@ export default function TagMissingLocationSearchLatLong(
     onLocationChange
   }: TagMissingLocationSearchLatLongProps
 ) {
-  const { toast } = useToast();
 
   const [latLong, setLatLong] = useState<string>("");
 
@@ -56,10 +55,7 @@ export default function TagMissingLocationSearchLatLong(
       .then(() => {
         // Save to recent searches
         addRecentSearch(formData, 'latlong');
-        toast({
-          title: "Location updated",
-          description: "Location updated successfully",
-        });
+        toast.success("Location updated");
       })
       .then(() => {
         onOpenChange(false);
@@ -70,10 +66,7 @@ export default function TagMissingLocationSearchLatLong(
         });
       })
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Error updating location",
-        });
+        toast.error("Error updating location");
       })
       .finally(() => {
         setSubmitting(false);

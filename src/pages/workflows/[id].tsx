@@ -24,7 +24,7 @@ import { IWorkflowWithDetails } from "@/types/workflow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import hotToast from "react-hot-toast";
+import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -149,8 +149,8 @@ function TriggerPopover({
       onCronChange(cron);
       if (workflowId) {
         updateWorkflow(workflowId, { cronSchedule: cron } as any)
-          .then(() => hotToast.success(`Schedule set — every ${every} ${interval}`))
-          .catch(() => hotToast.error("Failed to save schedule"));
+          .then(() => toast.success(`Schedule set — every ${every} ${interval}`))
+          .catch(() => toast.error("Failed to save schedule"));
       }
     }
   };
@@ -161,8 +161,8 @@ function TriggerPopover({
     onCronChange("");
     if (workflowId) {
       updateWorkflow(workflowId, { cronSchedule: null } as any)
-        .then(() => hotToast.success("Schedule cleared"))
-        .catch(() => hotToast.error("Failed to clear schedule"));
+        .then(() => toast.success("Schedule cleared"))
+        .catch(() => toast.error("Failed to clear schedule"));
     }
   };
 
@@ -286,7 +286,7 @@ function WorkflowEditorInner() {
         setEdges(data.edges.map(dbEdgeToFlowEdge));
       })
       .catch(() => {
-        hotToast.error("Failed to load workflow");
+        toast.error("Failed to load workflow");
       })
       .finally(() => setLoading(false));
 
@@ -361,9 +361,9 @@ function WorkflowEditorInner() {
         enabled,
         cronSchedule: cronSchedule || null,
       } as any);
-      hotToast.success("Workflow saved");
+      toast.success("Workflow saved");
     } catch {
-      hotToast.error("Failed to save workflow");
+      toast.error("Failed to save workflow");
     }
     setSaving(false);
   };
@@ -371,14 +371,14 @@ function WorkflowEditorInner() {
   const handleRun = async (mode: "manual" | "debug" = "manual") => {
     if (!id) return;
     setRunning(true);
-    hotToast(mode === "debug" ? "Starting debug..." : "Running workflow...");
+    const toastId = toast.loading(mode === "debug" ? "Starting debug..." : "Running workflow...");
     try {
       await runWorkflow(id, mode);
-      hotToast.success(mode === "debug" ? "Debug complete — no actions executed" : "Workflow run complete");
+      toast.success(mode === "debug" ? "Debug complete — no actions executed" : "Workflow run complete", { id: toastId });
       getWorkflowRuns(id).then(setRuns).catch(() => {});
       setShowRuns(true);
     } catch {
-      hotToast.error("Failed to run workflow");
+      toast.error("Failed to run workflow", { id: toastId });
     }
     setRunning(false);
   };
@@ -479,8 +479,8 @@ function WorkflowEditorInner() {
             setEnabled(val);
             if (id) {
               updateWorkflow(id, { enabled: val } as any)
-                .then(() => hotToast.success(val ? "Workflow enabled" : "Workflow disabled"))
-                .catch(() => hotToast.error("Failed to update workflow"));
+                .then(() => toast.success(val ? "Workflow enabled" : "Workflow disabled"))
+                .catch(() => toast.error("Failed to update workflow"));
             }
           }} />
         </div>

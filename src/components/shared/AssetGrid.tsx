@@ -14,7 +14,7 @@ import { useConfig } from '@/contexts/ConfigContext';
 import dynamic from 'next/dynamic';
 import { Heart, Info, Trash2, ExternalLink } from 'lucide-react';
 import { updateAssets, deleteAssets } from '@/handlers/api/asset.handler';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 import {
   AlertDialogHeader,
   AlertDialogTitle,
@@ -83,7 +83,7 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
     });
     try {
       await updateAssets({ ids: [assetId], isFavorite: newFav });
-      toast({ title: newFav ? "Added to favorites" : "Removed from favorites" });
+      toast.success(newFav ? "Added to favorites" : "Removed from favorites");
       onFavoriteAsset?.(assetId, newFav);
     } catch {
       // Revert on failure
@@ -92,7 +92,7 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
         isFav ? next.add(assetId) : next.delete(assetId);
         return next;
       });
-      toast({ title: "Error", description: "Failed to update favorite", variant: "destructive" });
+      toast.error("Failed to update favorite");
     }
   }, [favoriteIds, onFavoriteAsset]);
 
@@ -333,10 +333,10 @@ const AssetGrid = forwardRef<AssetGridRef, AssetGridProps>(({ assets, isInternal
                       await deleteAssets([currentAsset.id]);
                       setDeletedIds((prev) => new Set(prev).add(currentAsset.id));
                       onDeleteAsset?.(currentAsset.id);
-                      toast({ title: "Deleted", description: `"${currentAsset.originalFileName}" deleted.` });
+                      toast.success("Deleted", { description: `"${currentAsset.originalFileName}" deleted.` });
                       setIndex(-1);
                     } catch {
-                      toast({ title: "Error", description: "Failed to delete asset.", variant: "destructive" });
+                      toast.error("Failed to delete asset.");
                     }
                   }
                   setDeleteConfirmOpen(false);

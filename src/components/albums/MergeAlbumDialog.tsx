@@ -5,7 +5,7 @@ import { IAlbum } from '@/types/album';
 import { useAlbumSelection } from '@/contexts/AlbumSelectionContext';
 import AlbumThumbnail from './list/AlbumThumbnail';
 import { mergeAlbums } from '@/handlers/api/album.handler';
-import toast from 'react-hot-toast';
+import { toast } from "sonner";
 
 interface IProps {
   onMerge: (primaryAlbumId: string, secondaryAlbumIds: string[]) => void;

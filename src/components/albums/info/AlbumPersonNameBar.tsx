@@ -1,7 +1,7 @@
 import FloatingBar from '@/components/shared/FloatingBar'
 import { AlertDialog, IAlertDialogActions } from '@/components/ui/alert-dialog'
 import { Autocomplete, AutocompleteOption } from '@/components/ui/autocomplete'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from "sonner";
 import { PERSON_THUBNAIL_PATH } from '@/config/routes'
 import { mergePerson, searchPeople, updatePerson } from '@/handlers/api/people.handler'
 import { IAlbumPerson } from '@/types/album'
@@ -22,8 +22,6 @@ export default function AlbumPersonNameBar({ selectedPerson, faceId, onUpdate, o
   const mergeDialogRef = useRef<IAlertDialogActions>(null);
   const selectedPersonRef = useRef<AutocompleteOption | null>(null);
 
-  const { toast } = useToast()
-
 
   const handleFormSubmit = () => {
     if (!faceId) return
@@ -35,11 +33,7 @@ export default function AlbumPersonNameBar({ selectedPerson, faceId, onUpdate, o
         onUpdate(person)
       })
       .catch((error) => {
-        toast({
-          title: "Error updating person",
-          description: error.message,
-          variant: "destructive"
-        })
+        toast.error("Error updating person", { description: error.message })
       })
       .finally(() => {
         setLoading(false)
@@ -56,11 +50,7 @@ export default function AlbumPersonNameBar({ selectedPerson, faceId, onUpdate, o
       })
     })
       .catch((error) => {
-        toast({
-          title: "Error merging person",
-          description: error.message,
-          variant: "destructive"
-        })
+        toast.error("Error merging person", { description: error.message })
       })
       .finally(() => {
         setLoading(false)

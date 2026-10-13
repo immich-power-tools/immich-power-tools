@@ -13,7 +13,7 @@ import { IAlbum, IAlbumCreate } from "@/types/album";
 import { Input } from "../ui/input";
 import { usePhotoSelectionContext } from "@/contexts/PhotoSelectionContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Label } from "../ui/label";
 
 interface IProps {

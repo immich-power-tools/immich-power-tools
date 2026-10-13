@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import AlbumSelectorDialog from '@/components/albums/AlbumSelectorDialog'
 import { IAlbum } from '@/types/album'
-import { toast } from '@/components/ui/use-toast'
+import { toast } from "sonner";
 
 export default function OrphanFinderPage() {
   const [assets, setAssets] = useState<IAsset[]>([])
@@ -97,7 +97,7 @@ export default function OrphanFinderPage() {
 
   const handleAddToAlbum = async (album: IAlbum) => {
     await addAssetToAlbum(album.id, contextState.selectedIds);
-    toast({ title: "Success", description: `Added ${contextState.selectedIds.length} asset(s) to "${album.albumName}"` });
+    toast.success(`Added ${contextState.selectedIds.length} asset(s) to "${album.albumName}"`);
     if (filters.notInAlbum) {
       fetchOrphans();
     }

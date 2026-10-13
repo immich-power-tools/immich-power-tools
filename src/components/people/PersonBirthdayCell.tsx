@@ -1,7 +1,7 @@
 import { IPerson } from '@/types/person'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { updatePerson } from '@/handlers/api/people.handler';
-import { useToast } from '../ui/use-toast';
+import { toast } from "sonner";
 import { format } from 'date-fns';
 import { CalendarDays, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -29,7 +29,6 @@ const normalizeDateOnly = (value?: Date | string | null): Date | null => {
 export default function PersonBirthdayCell({ person }: IProps) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const { toast } = useToast();
   const normalizedBirthDate = useMemo(() => normalizeDateOnly(person.birthDate), [person.birthDate]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(normalizedBirthDate);
   const [textInput, setTextInput] = useState('');
@@ -46,10 +45,10 @@ export default function PersonBirthdayCell({ person }: IProps) {
         setSelectedDate(date);
         setOpen(false);
         setTextInput('');
-        toast({ title: "Birthday saved" });
+        toast.success("Birthday saved");
       })
       .catch(() => {
-        toast({ title: "Error", description: "Failed to save birthday", variant: "destructive" });
+        toast.error("Failed to save birthday");
       })
       .finally(() => setLoading(false));
   };
@@ -67,7 +66,7 @@ export default function PersonBirthdayCell({ person }: IProps) {
     if (parsed) {
       handleSave(parsed);
     } else {
-      toast({ title: "Couldn't parse date", description: 'Try "Jan 1 1990" or "1990-01-01"', variant: "destructive" });
+      toast.error("Couldn't parse date", { description: 'Try "Jan 1 1990" or "1990-01-01"' });
     }
   };
 

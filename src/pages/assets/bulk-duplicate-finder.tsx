@@ -15,7 +15,7 @@ import FloatingBar from '@/components/shared/FloatingBar'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-import { toast } from '@/components/ui/use-toast'
+import { toast } from "sonner";
 import { humanizeBytes } from '@/helpers/string.helper'
 
 type AlbumTransferMode = 'always' | 'never' | 'ask';
@@ -83,11 +83,7 @@ export default function BulkDuplicatePage() {
       }
     } catch (error: any) {
       setError(error.message || 'Failed to load duplicate assets');
-      toast({
-        title: "Error",
-        description: "Failed to load duplicate assets. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load duplicate assets. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -269,16 +265,9 @@ export default function BulkDuplicatePage() {
 
       setLastSelectedIndex(-1);
 
-      toast({
-        title: "Success",
-        description: `Successfully deleted ${record.assets.length} duplicate assets and saved ${humanizeBytes(totalSize)} of storage.`,
-      });
+      toast.success(`Successfully deleted ${record.assets.length} duplicate assets and saved ${humanizeBytes(totalSize)} of storage.`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete assets. Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to delete assets. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -307,16 +296,9 @@ export default function BulkDuplicatePage() {
 
       setLastSelectedIndex(-1);
 
-      toast({
-        title: "Success",
-        description: `Successfully kept ${record.assets.length} assets. They will no longer appear as duplicates.`,
-      });
+      toast.success(`Successfully kept ${record.assets.length} assets. They will no longer appear as duplicates.`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to keep assets. Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to keep assets. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -360,10 +342,7 @@ export default function BulkDuplicatePage() {
       'smallest-size': 'smallest size'
     }[criteria];
     
-    toast({
-      title: "Auto-selection complete",
-      description: `Selected ${newSelection.size} assets based on ${criteriaText} criteria.`,
-    });
+    toast.success("Auto-selection complete", { description: `Selected ${newSelection.size} assets based on ${criteriaText} criteria.` });
   };
 
   // Compute albums that are only on discarded assets (not already on kept assets)
@@ -443,16 +422,9 @@ export default function BulkDuplicatePage() {
         ? ` Moved ${albumIdsToTransfer.length} album(s).`
         : '';
 
-      toast({
-        title: "Success",
-        description: `Kept ${keptIds.length} asset(s), deleted ${discardedIds.length}.${transferMsg}${discardedSize > 0 ? ` Saved ${humanizeBytes(discardedSize)}.` : ''}`,
-      });
+      toast.success(`Kept ${keptIds.length} asset(s), deleted ${discardedIds.length}.${transferMsg}${discardedSize > 0 ? ` Saved ${humanizeBytes(discardedSize)}.` : ''}`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process assets. Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to process assets. Please try again.");
     } finally {
       setIsDeleting(false);
     }

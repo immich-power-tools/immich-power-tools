@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatDate, offsetDate } from '@/helpers/date.helper';
 import Image from 'next/image';
 import { updateAssets } from '@/handlers/api/asset.handler';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 
 interface IProps {
   assets: IAsset[];
@@ -119,7 +119,6 @@ const offsetDateWithTimezone = (
 };
 
 export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProps) {
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<IAsset[]>(_assets);
   const [offsetData, setOffsetData] = useState<{ 
@@ -166,10 +165,7 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
     setLoading(false);
     setOpen(false);
     onComplete();
-    toast({
-      title: 'Asset dates offset',
-      description: 'Asset dates have been offset',
-    })
+    toast.success('Asset dates offset', { description: 'Asset dates have been offset' })
   }
 
   useEffect(() => {

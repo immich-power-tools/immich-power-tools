@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/loader";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { searchPlaces } from "@/handlers/api/common.handler";
 import { cn, addRecentSearch } from "@/lib/utils";
 import { IPlace } from "@/types/common";
@@ -21,7 +21,6 @@ export default function TagMissingLocationSearchAndAdd(
     onOpenChange
   }: ITagMissingLocationSearchAndAddProps
 ) {
-  const { toast } = useToast();
   const [searchedPlaces, setSearchedPlaces] = useState<IPlace[] | null>(null);
   const searchTimer = useRef<NodeJS.Timeout>(undefined);
   const [loading, setLoading] = useState(false);
@@ -73,20 +72,14 @@ export default function TagMissingLocationSearchAndAdd(
       .then(() => {
         // Save to recent searches
         addRecentSearch(selectedPlace, 'immich');
-        toast({
-          title: "Location updated",
-          description: "Location updated successfully",
-        });
+        toast.success("Location updated");
       })
       .then(() => {
         onOpenChange(false);
         setSelectedPlace(null);
       })
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Error updating location",
-        });
+        toast.error("Error updating location");
       })
       .finally(() => {
         setSubmitting(false);
