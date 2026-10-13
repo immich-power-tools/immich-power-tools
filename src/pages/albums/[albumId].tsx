@@ -19,6 +19,7 @@ import { AlertDialog } from '@/components/ui/alert-dialog'
 import AssetOffsetDialog from '@/components/assets/assets-options/AssetOffsetDialog'
 import { Input } from '@/components/ui/input'
 import AlbumPersonNameBar from '@/components/albums/info/AlbumPersonNameBar'
+import { toast } from "sonner";
 
 export default function AlbumListPage() {
   const { exImmichUrl } = useConfig()
@@ -110,8 +111,10 @@ export default function AlbumListPage() {
   }
 
   const handleDelete = () => {
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Deleted ${count} asset(s)`);
       contextState.updateContext({
         selectedIds: [],
         assets: newAssets,

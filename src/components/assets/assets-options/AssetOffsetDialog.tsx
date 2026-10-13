@@ -146,6 +146,7 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    let failed = 0;
     const promises = assets.map(async (asset) => {
       setAssetStatus({ [asset.id]: 'pending' });
       await updateAssets({
@@ -157,6 +158,7 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
           setOpen(false);
         })
         .catch((error) => {
+          failed++;
           setLoading(false);
           setAssetStatus({ [asset.id]: 'error' });
         })
@@ -165,7 +167,11 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
     setLoading(false);
     setOpen(false);
     onComplete();
-    toast.success('Asset dates offset', { description: 'Asset dates have been offset' })
+    if (failed === 0) {
+      toast.success('Asset dates offset', { description: 'Asset dates have been offset' })
+    } else {
+      toast.error(`Failed to offset ${failed} of ${assets.length} assets`)
+    }
   }
 
   useEffect(() => {

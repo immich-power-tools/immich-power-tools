@@ -31,6 +31,7 @@ export default function AlbumPersonNameBar({ selectedPerson, faceId, onUpdate, o
     })
       .then((person) => {
         onUpdate(person)
+        toast.success("Person updated")
       })
       .catch((error) => {
         toast.error("Error updating person", { description: error.message })
@@ -48,6 +49,7 @@ export default function AlbumPersonNameBar({ selectedPerson, faceId, onUpdate, o
         id: option.value,
         name: option.label,
       })
+      toast.success(`Merged into ${option.label}`)
     })
       .catch((error) => {
         toast.error("Error merging person", { description: error.message })

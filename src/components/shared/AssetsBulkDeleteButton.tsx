@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { Button } from '../ui/button';
 import { AlertDialog } from '../ui/alert-dialog';
 import { deleteAssets } from '@/handlers/api/asset.handler';
+import { toast } from "sonner";
 
 interface AssetsBulkDeleteButtonProps {
   selectedIds: string[];
@@ -18,6 +19,7 @@ export default function AssetsBulkDeleteButton({ selectedIds, onDelete }: Assets
   const handleDelete = () => {
     return deleteAssets(ids).then(() => {
       onDelete(ids);
+      toast.success(`Deleted ${ids.length} asset(s)`);
     })
   }
 

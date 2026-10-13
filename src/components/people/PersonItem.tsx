@@ -53,13 +53,19 @@ export default function PersonItem({ person, onRemove }: IProps) {
   const handleHide = (hidden: boolean) => {
     setLoading(true);
     return updatePerson(person.id, { isHidden: hidden })
-      .then(() => setFormData((p) => ({ ...p, isHidden: hidden })))
-      .catch(() => {})
+      .then(() => {
+        setFormData((p) => ({ ...p, isHidden: hidden }));
+        toast.success(hidden ? "Person hidden" : "Person unhidden");
+      })
+      .catch(() => {
+        toast.error(hidden ? "Failed to hide person" : "Failed to unhide person");
+      })
       .finally(() => setLoading(false));
   };
 
   const handleMerge = async (option: AutocompleteOption) => {
     await mergePerson(person.id, [option.value]);
+    toast.success(`Merged into ${option.label}`);
   };
 
   return (
@@ -199,8 +205,8 @@ export default function PersonItem({ person, onRemove }: IProps) {
         ref={mergeDialogRef}
         title="Merge Person"
         description="Are you sure you want to merge this person with the selected person?"
-        onConfirm={() => {
-          if (selectedPerson.current) handleMerge(selectedPerson.current);
+        onConfirm={async () => {
+          if (selectedPerson.current) await handleMerge(selectedPerson.current);
         }}
       />
     </div>

@@ -80,23 +80,32 @@ export default function OrphanFinderPage() {
   }, [fetchOrphans])
 
   const handleDelete = () => {
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds, { force: true }).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Deleted ${count} asset(s)`);
       setAssets(newAssets)
       contextState.updateContext({ selectedIds: [], assets: newAssets });
     })
   }
 
   const handleTrash = () => {
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds, { force: false }).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Moved ${count} asset(s) to trash`);
       setAssets(newAssets)
       contextState.updateContext({ selectedIds: [], assets: newAssets });
     })
   }
 
   const handleAddToAlbum = async (album: IAlbum) => {
-    await addAssetToAlbum(album.id, contextState.selectedIds);
+    try {
+      await addAssetToAlbum(album.id, contextState.selectedIds);
+    } catch {
+      toast.error(`Failed to add assets to "${album.albumName}"`);
+      return;
+    }
     toast.success(`Added ${contextState.selectedIds.length} asset(s) to "${album.albumName}"`);
     if (filters.notInAlbum) {
       fetchOrphans();
@@ -105,9 +114,12 @@ export default function OrphanFinderPage() {
 
   const handleCreateAlbumWithAssets = async (data: { albumName: string }) => {
     return createAlbumWithAssets(data.albumName, contextState.selectedIds).then(() => {
+      toast.success(`Album "${data.albumName}" created with ${contextState.selectedIds.length} asset(s)`);
       if (filters.notInAlbum) {
         fetchOrphans();
       }
+    }).catch(() => {
+      toast.error("Failed to create album");
     });
   }
 

@@ -24,6 +24,7 @@ import {
   FilePlus, FileEdit, Database, GitBranch, GitFork,
   FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // ---- Annotated Node Components (read-only, with run data) ----
 
@@ -225,7 +226,7 @@ function RunDetailInner() {
     setLoading(true);
     API.get(`/api/workflows/${id}/runs/${runId}`)
       .then(setData)
-      .catch(() => {})
+      .catch(() => toast.error("Failed to load workflow run"))
       .finally(() => setLoading(false));
   }, [id, runId]);
 
