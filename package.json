@@ -60,7 +60,7 @@
     "leaflet.heat": "^0.2.0",
     "libsodium-wrappers-sumo": "^0.8.4",
     "lucide-react": "^0.428.0",
-    "next": "15.5.27",
+    "next": "15.5.28",
     "next-themes": "^0.3.0",
     "node-cron": "3.0.3",
     "openai": "^7.27.0",
