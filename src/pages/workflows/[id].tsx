@@ -651,7 +651,7 @@ function WorkflowEditorInner() {
                           )}
                           {result.assetIds && result.assetIds.length > 0 && (
                             <div>
-                              <p className="text-[10px] font-medium text-muted-foreground mb-1">Assets ({result.assetIds.length}):</p>
+                              <p className="text-[10px] font-medium text-muted-foreground mb-1">Assets ({result.assetCount ?? result.assetIds.length}):</p>
                               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                                 {result.assetIds.slice(0, 50).map((assetId: string) => (
                                   <img
@@ -661,8 +661,8 @@ function WorkflowEditorInner() {
                                     className="h-8 w-8 rounded object-cover"
                                   />
                                 ))}
-                                {result.assetIds.length > 50 && (
-                                  <span className="text-[10px] text-muted-foreground self-center">+{result.assetIds.length - 50} more</span>
+                                {(result.assetCount ?? result.assetIds.length) > 50 && (
+                                  <span className="text-[10px] text-muted-foreground self-center">+{(result.assetCount ?? result.assetIds.length) - 50} more</span>
                                 )}
                               </div>
                             </div>
