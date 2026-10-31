@@ -45,6 +45,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrations ./src/db/migrat
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@libsql ./node_modules/@libsql
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/libsql ./node_modules/libsql
 
+# Same insurance for sharp (Face Review's face-crop endpoint): its platform
+# binaries live in @img/* optional deps that standalone tracing can miss.
+# sharp itself comes via Next's optionalDependencies, not package.json.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/sharp ./node_modules/sharp
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@img ./node_modules/@img
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/detect-libc ./node_modules/detect-libc
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/semver ./node_modules/semver
+
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
 USER nextjs
