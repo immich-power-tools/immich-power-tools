@@ -8,6 +8,11 @@ export const LOGOUT_PATH = BASE_API_ENDPOINT + "/users/logout";
 
 export const LIST_PEOPLE_PATH = BASE_API_ENDPOINT + "/people/list";
 export const LIST_TAGS_PATH = BASE_API_ENDPOINT + "/tags";
+// Create-or-get a tag by name, and assign that tag on assets — both proxied
+// straight to Immich with the requesting user's own session, same pattern as
+// UPDATE_ASSETS_PATH. Rate & Cull's Pick/Reject/Reviewed flags are Immich tags.
+export const CREATE_OR_GET_TAG_PATH = BASE_PROXY_ENDPOINT + "/tags";
+export const TAG_ASSETS_PATH = (tagId: string) => BASE_PROXY_ENDPOINT + "/tags/" + tagId + "/assets";
 export const SEARCH_PEOPLE_PATH = BASE_PROXY_ENDPOINT + "/search/person";
 export const SIMILAR_FACES_PATH = (id: string) => BASE_API_ENDPOINT + "/people/" + id + "/similar-faces";
 export const PERSON_THUBNAIL_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/thumbnail/" + id;
@@ -48,6 +53,8 @@ export const ASSET_VIDEO_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/asset/vi
 export const ASSET_GEO_HEATMAP_PATH = BASE_API_ENDPOINT + "/assets/geo-heatmap";
 export const LIST_EMPTY_VIDEOS_PATH = BASE_API_ENDPOINT + "/assets/empty-videos";
 export const LIST_ORPHAN_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/orphan-finder";
+export const LIST_CULL_ASSETS_PATH = BASE_API_ENDPOINT + "/assets/cull-assets";
+export const ASSET_DETAIL_PATH = (id: string) => BASE_API_ENDPOINT + "/assets/" + id + "/detail";
 
 
 
