@@ -8,6 +8,14 @@ export const LOGOUT_PATH = BASE_API_ENDPOINT + "/users/logout";
 
 export const LIST_PEOPLE_PATH = BASE_API_ENDPOINT + "/people/list";
 export const LIST_TAGS_PATH = BASE_API_ENDPOINT + "/tags";
+// Create-or-get a tag by name, and single-tag delete/color-update — both
+// proxied straight to Immich with the requesting user's own session.
+export const CREATE_OR_GET_TAG_PATH = BASE_PROXY_ENDPOINT + "/tags";
+export const TAG_PATH = (tagId: string) => BASE_PROXY_ENDPOINT + "/tags/" + tagId;
+// Rename / nest / un-nest go through this app's own endpoint — Immich v3's
+// tag update can't change name or parentId, so those recreate the tag (see
+// lib/tag-manager/move.ts).
+export const MOVE_TAG_PATH = (tagId: string) => BASE_API_ENDPOINT + "/tags/" + tagId + "/move";
 export const SEARCH_PEOPLE_PATH = BASE_PROXY_ENDPOINT + "/search/person";
 export const SIMILAR_FACES_PATH = (id: string) => BASE_API_ENDPOINT + "/people/" + id + "/similar-faces";
 export const PERSON_THUBNAIL_PATH = (id: string) => BASE_PROXY_ENDPOINT + "/thumbnail/" + id;
