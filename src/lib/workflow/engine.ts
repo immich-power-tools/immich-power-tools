@@ -416,7 +416,10 @@ export async function executeWorkflow(
                   assetId,
                   runId,
                 }))
-              );
+              ).onConflictDoUpdate({
+                target: [workflowProcessedAssets.workflowId, workflowProcessedAssets.assetId],
+                set: { runId, processedAt: new Date() },
+              });
             }
             log(runId, `Recorded ${actionAssetIds.length} assets as processed`);
           }
