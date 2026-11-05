@@ -57,7 +57,8 @@ export type ConditionType =
   | "rating" | "is_favorited" | "resolution"
   | "file_size" | "filename" | "file_extension"
   | "face_count" | "time_of_day"
-  | "not_in_album" | "not_in_specific_album";
+  | "not_in_album" | "not_in_specific_album"
+  | "variable";
 
 export interface ICondition {
   type: ConditionType;
@@ -67,6 +68,11 @@ export interface ICondition {
 export interface IManualTriggerData {}
 export interface IScheduleTriggerData { cron: string; }
 export interface IWebhookTriggerData { token: string; }
+export interface IPersonNamedTriggerData {}
+export interface IAlbumAddedTriggerData {}
+export interface IFavoritedTriggerData {}
+export interface IRatingChangedTriggerData {}
+export interface ITagAddedTriggerData {}
 
 export interface IIfNodeData { conditions: ICondition[]; }
 export interface ISwitchCase { label: string; conditions: ICondition[]; handle: string; }
@@ -84,4 +90,20 @@ export interface IWorkflowExport {
   viewport: string;
   nodes: Omit<IWorkflowNode, "workflowId" | "createdAt">[];
   edges: Omit<IWorkflowEdge, "workflowId" | "createdAt">[];
+}
+
+export type VariableOperator =
+  | "equals" | "not_equals" | "contains"
+  | "greater_than" | "less_than" | "exists" | "not_exists";
+
+export interface IHttpHeader { key: string; value: string; }
+
+export interface IHttpRequestActionData {
+  url: string;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  headers: IHttpHeader[];
+  body: string;
+  saveAs?: string;
+  extractPath?: string;
+  timeoutSeconds?: number;
 }

@@ -31,6 +31,7 @@ export const exif = pgTable('asset_exif', {
   bitsPerSample: integer('bitsPerSample'),
   autoStackId: varchar('autoStackId'),
   rating: integer('rating'),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 });
 
 export type IExifColumns = keyof typeof exif.$inferSelect

@@ -39,6 +39,7 @@ const conditionTypeLabels: Record<ConditionType, string> = {
   time_of_day: "Time of Day",
   not_in_album: "Not in Any Album",
   not_in_specific_album: "Not in Specific Album",
+  variable: "Variable",
 };
 
 const conditionTypes = Object.keys(conditionTypeLabels) as ConditionType[];
@@ -458,6 +459,33 @@ function ConditionFields({ condition, onChange }: { condition: ICondition; onCha
       return null;
     case "not_in_specific_album":
       return <Input className="h-7 text-xs" placeholder="Album ID" value={condition.albumId || ""} onChange={(e) => onChange({ ...condition, albumId: e.target.value })} />;
+    case "variable":
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input className="h-7 text-xs" placeholder="Variable name" value={condition.name || ""} onChange={(e) => onChange({ ...condition, name: e.target.value })} />
+            <Input className="h-7 text-xs" placeholder="Path (e.g. data.0.id)" value={condition.path || ""} onChange={(e) => onChange({ ...condition, path: e.target.value })} />
+          </div>
+          <div className="flex gap-2">
+            <Select value={condition.operator || "equals"} onValueChange={(v) => onChange({ ...condition, operator: v })}>
+              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="equals">Equals</SelectItem>
+                <SelectItem value="not_equals">Not equals</SelectItem>
+                <SelectItem value="contains">Contains</SelectItem>
+                <SelectItem value="greater_than">Greater than</SelectItem>
+                <SelectItem value="less_than">Less than</SelectItem>
+                <SelectItem value="exists">Exists</SelectItem>
+                <SelectItem value="not_exists">Does not exist</SelectItem>
+              </SelectContent>
+            </Select>
+            {condition.operator !== "exists" && condition.operator !== "not_exists" && (
+              <Input className="h-7 text-xs" placeholder="Value" value={condition.value ?? ""} onChange={(e) => onChange({ ...condition, value: e.target.value })} />
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground">Matches against a variable saved by an upstream HTTP Call node.</p>
+        </div>
+      );
     default:
       return null;
   }

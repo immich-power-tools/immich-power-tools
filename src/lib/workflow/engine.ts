@@ -2,10 +2,13 @@ import { appDb } from "@/db";
 import { db } from "@/config/db";
 import { workflows, workflowNodes, workflowEdges, workflowRuns, workflowProcessedAssets } from "@/db/schema/workflows.schema";
 import { assets } from "@/schema/assets.schema";
-import { exif } from "@/schema";
+import { exif, albumsAssetsAssets } from "@/schema";
+import { person } from "@/schema/person.schema";
+import { assetFaces } from "@/schema/assetFaces.schema";
 import { eq, and, desc, gt, gte, isNull, inArray, sql, ne, SQL } from "drizzle-orm";
 import { buildConditions } from "./conditionBuilder";
-import { executeAction } from "./actionExecutor";
+import { executeAction, executeHttpRequest } from "./actionExecutor";
+import { evaluateVariableCondition } from "./variableConditions";
 import { IUser } from "@/types/user";
 import { randomUUID } from "crypto";
 
@@ -115,7 +118,7 @@ async function resolveAssetTrigger(
 
   // Get already-processed assets for this workflow
   let processedMap: Map<string, Date> | null = null;
-  if (subType === "new_asset" || subType === "asset_updated") {
+  if (subType === "new_asset" || subType === "asset_updated" || subType === "person_named" || subType === "album_added" || subType === "favorited" || subType === "rating_changed" || subType === "tag_added") {
     const processed = await appDb
       .select({ assetId: workflowProcessedAssets.assetId, processedAt: workflowProcessedAssets.processedAt })
       .from(workflowProcessedAssets)
@@ -158,6 +161,85 @@ async function resolveAssetTrigger(
       })
       .map((r) => r.id);
     log(runId, `Trigger [asset_updated]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not updated since processing), ${candidateIds.length} remaining`);
+  } else if (subType === "person_named") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id, namedAt: person.updatedAt })
+        .from(assets)
+        .innerJoin(assetFaces, eq(assets.id, assetFaces.assetId))
+        .innerJoin(person, eq(assetFaces.personId, person.id))
+        .where(and(
+          ...baseConditions,
+          eq(person.ownerId, userId),
+          eq(person.isHidden, false),
+          ne(person.name, ""),
+          gte(person.updatedAt, sinceDate),
+          ...(afterId ? [gt(assets.id, afterId)] : [])
+        ))
+        .orderBy(assets.id, desc(person.updatedAt))
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    // For person_named: reprocess only if a face was (re)named after we last processed this asset
+    candidateIds = rows
+      .filter((r) => {
+        const lastProcessed = processedMap?.get(r.id);
+        if (!lastProcessed) return true; // never processed
+        if (!r.namedAt) return true;     // no timestamp (shouldn't happen given WHERE), be permissive
+        return r.namedAt > lastProcessed;
+      })
+      .map((r) => r.id);
+    log(runId, `Trigger [person_named]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} skipped (not renamed since processing), ${candidateIds.length} remaining`);
+  } else if (subType === "album_added") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .innerJoin(albumsAssetsAssets, eq(assets.id, albumsAssetsAssets.assetId))
+        .where(and(...baseConditions, gte(albumsAssetsAssets.createdAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [album_added]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "favorited") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, eq(assets.isFavorite, true), gte(assets.updatedAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [favorited]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "rating_changed") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .innerJoin(exif, eq(assets.id, exif.assetId))
+        .where(and(...baseConditions, gt(exif.rating, 0), gte(exif.updatedAt, sinceDate), ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [rating_changed]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
+  } else if (subType === "tag_added") {
+    const rows = await fetchAllBatches((afterId, limit) =>
+      db
+        .selectDistinctOn([assets.id], { id: assets.id })
+        .from(assets)
+        .where(and(...baseConditions, sql`EXISTS (SELECT 1 FROM "tag_asset" ta WHERE ta."assetId" = ${assets.id})`, ...(afterId ? [gt(assets.id, afterId)] : [])))
+        .orderBy(assets.id)
+        .limit(limit)
+    );
+    const totalCandidates = rows.length;
+    candidateIds = rows.map((r) => r.id).filter((id) => !processedMap?.has(id));
+    log(runId, `Trigger [tag_added]: ${totalCandidates} candidates, ${totalCandidates - candidateIds.length} already processed, ${candidateIds.length} remaining`);
   } else {
     // all_assets — no dedup
     const rows = await fetchAllBatches((afterId, limit) =>
@@ -244,9 +326,11 @@ export async function executeWorkflow(
     const result: RunResult = { matchedAssets: 0, assetIds: [], actions: [] };
     const debugSteps: DebugStep[] = [];
     const allProcessedAssetIds = new Set<string>();
+    const recordedAssetIds = new Set<string>();
 
     // BFS: process nodes with their incoming asset sets
-    const queue: { nodeId: string; assetIds: string[] | null }[] = [];
+    type AssetContext = Map<string, Record<string, any>>;
+    const queue: { nodeId: string; assetIds: string[] | null; context: AssetContext }[] = [];
 
     // Resolve each asset trigger to get the initial asset set
     for (const triggerNode of triggerNodes) {
@@ -273,7 +357,7 @@ export async function executeWorkflow(
 
       const targets = adjacency.get(triggerNode.id)?.get(null) || [];
       for (const targetId of targets) {
-        queue.push({ nodeId: targetId, assetIds });
+        queue.push({ nodeId: targetId, assetIds, context: new Map() });
       }
     }
 
@@ -281,7 +365,7 @@ export async function executeWorkflow(
     let step = 0;
     while (queue.length > 0) {
       step++;
-      const { nodeId, assetIds } = queue.shift()!;
+      const { nodeId, assetIds, context } = queue.shift()!;
       const node = nodeMap.get(nodeId);
       if (!node) {
         log(runId, `Step ${step}: Node ${nodeId.slice(0, 8)} not found, skipping`);
@@ -296,20 +380,25 @@ export async function executeWorkflow(
         if (node.subType === "if") {
           // Query assets matching conditions, scoped to incoming set
           const conditions = config.conditions || [];
-          log(runId, `IF: ${conditions.length} conditions: ${conditions.map((c: any) => c.type).join(", ")}`);
+          const sqlConds = conditions.filter((c: any) => c.type !== "variable");
+          const varConds = conditions.filter((c: any) => c.type === "variable");
+          log(runId, `IF: ${conditions.length} conditions (${varConds.length} variable): ${conditions.map((c: any) => c.type).join(", ")}`);
 
-          const whereClauses = buildConditions(conditions, user.id);
+          const whereClauses = buildConditions(sqlConds, user.id);
 
           // Scoped to incoming assets (chunked) when available
           const matchedIds = await queryConditionMatches(whereClauses, assetIds);
           const matchedSet = new Set(matchedIds);
 
+          const passes = (id: string) =>
+            matchedSet.has(id) && varConds.every((c: any) => evaluateVariableCondition(c, context.get(id)));
+
           let trueIds = matchedIds;
           let falseIds: string[] = [];
 
           if (assetIds !== null) {
-            trueIds = assetIds.filter((id) => matchedSet.has(id));
-            falseIds = assetIds.filter((id) => !matchedSet.has(id));
+            trueIds = assetIds.filter(passes);
+            falseIds = assetIds.filter((id) => !passes(id));
           }
 
           log(runId, `IF result: ${trueIds.length} → TRUE, ${falseIds.length} → FALSE`);
@@ -328,8 +417,8 @@ export async function executeWorkflow(
           // Route to true/false branches
           const trueTargets = adjacency.get(nodeId)?.get("true") || [];
           const falseTargets = adjacency.get(nodeId)?.get("false") || [];
-          for (const t of trueTargets) queue.push({ nodeId: t, assetIds: trueIds });
-          for (const t of falseTargets) queue.push({ nodeId: t, assetIds: falseIds });
+          for (const t of trueTargets) queue.push({ nodeId: t, assetIds: trueIds, context });
+          for (const t of falseTargets) queue.push({ nodeId: t, assetIds: falseIds, context });
 
         } else if (node.subType === "switch") {
           const cases = config.cases || [];
@@ -339,18 +428,23 @@ export async function executeWorkflow(
 
           for (let ci = 0; ci < cases.length; ci++) {
             const c = cases[ci];
-            log(runId, `  Case "${c.label || ci}": ${(c.conditions || []).length} conditions, checking against ${remaining?.length ?? "all"} assets`);
+            const caseConds = c.conditions || [];
+            const sqlConds = caseConds.filter((cc: any) => cc.type !== "variable");
+            const varConds = caseConds.filter((cc: any) => cc.type === "variable");
+            log(runId, `  Case "${c.label || ci}": ${caseConds.length} conditions (${varConds.length} variable), checking against ${remaining?.length ?? "all"} assets`);
 
-            const whereClauses = buildConditions(c.conditions || [], user.id);
+            const whereClauses = buildConditions(sqlConds, user.id);
 
             // Scoped to remaining assets (chunked) when available
             const matchedIds = await queryConditionMatches(whereClauses, remaining);
             const matchedSet = new Set(matchedIds);
+            const passes = (id: string) =>
+              matchedSet.has(id) && varConds.every((cc: any) => evaluateVariableCondition(cc, context.get(id)));
             let caseIds: string[];
 
             if (remaining !== null) {
-              caseIds = remaining.filter((id) => matchedSet.has(id));
-              remaining = remaining.filter((id) => !matchedSet.has(id));
+              caseIds = remaining.filter(passes);
+              remaining = remaining.filter((id) => !passes(id));
             } else {
               caseIds = matchedIds;
               remaining = [];
@@ -361,7 +455,7 @@ export async function executeWorkflow(
             result.matchedAssets = Math.max(result.matchedAssets, caseIds.length);
 
             const caseTargets = adjacency.get(nodeId)?.get(c.handle) || [];
-            for (const t of caseTargets) queue.push({ nodeId: t, assetIds: caseIds });
+            for (const t of caseTargets) queue.push({ nodeId: t, assetIds: caseIds, context });
           }
 
           const caseOutput: Record<string, number> = {};
@@ -379,7 +473,7 @@ export async function executeWorkflow(
 
           // Default branch gets remaining
           const defaultTargets = adjacency.get(nodeId)?.get("default") || [];
-          for (const t of defaultTargets) queue.push({ nodeId: t, assetIds: remaining || [] });
+          for (const t of defaultTargets) queue.push({ nodeId: t, assetIds: remaining || [], context });
         }
 
       } else if (node.type === "action") {
@@ -401,24 +495,47 @@ export async function executeWorkflow(
         });
 
         if (!isDebug && actionAssetIds.length > 0) {
-          const actionResult = await executeAction(node.subType, config, actionAssetIds, user);
-          log(runId, `ACTION [${node.subType}] completed: ${actionResult.assetsProcessed} processed${actionResult.albumName ? ` → "${actionResult.albumName}"` : ""}${actionResult.error ? ` ERROR: ${actionResult.error}` : ""}`);
+          let actionResult: any;
+          let httpVariables: Map<string, any> | null = null;
+
+          if (node.subType === "http_request") {
+            const out = await executeHttpRequest(config, actionAssetIds, context, user);
+            actionResult = out.result;
+            httpVariables = out.variables;
+            log(runId, `ACTION [http_request] completed: ${actionResult.succeeded}/${actionAssetIds.length} ok, ${actionResult.failed} failed`);
+          } else {
+            actionResult = await executeAction(node.subType, config, actionAssetIds, user);
+            log(runId, `ACTION [${node.subType}] completed: ${actionResult.assetsProcessed} processed${actionResult.albumName ? ` → "${actionResult.albumName}"` : ""}${actionResult.error ? ` ERROR: ${actionResult.error}` : ""}`);
+          }
           result.actions.push({ ...actionResult, assetIds: actionAssetIds });
 
-          // Record processed assets to prevent reprocessing
-          if (actionAssetIds.length > 0) {
+          // Record processed assets to prevent reprocessing. Deduped per-run
+          // because a pass-through node can send an asset to multiple actions
+          // and this table has no unique constraint.
+          const toRecord = actionAssetIds.filter((id) => !recordedAssetIds.has(id));
+          if (toRecord.length > 0) {
             const batchSize = 100;
-            for (let i = 0; i < actionAssetIds.length; i += batchSize) {
-              const batch = actionAssetIds.slice(i, i + batchSize);
+            for (let i = 0; i < toRecord.length; i += batchSize) {
+              const batch = toRecord.slice(i, i + batchSize);
               await appDb.insert(workflowProcessedAssets).values(
-                batch.map((assetId) => ({
-                  workflowId,
-                  assetId,
-                  runId,
-                }))
+                batch.map((assetId) => ({ workflowId, assetId, runId }))
               );
             }
-            log(runId, `Recorded ${actionAssetIds.length} assets as processed`);
+            toRecord.forEach((id) => recordedAssetIds.add(id));
+            log(runId, `Recorded ${toRecord.length} assets as processed`);
+          }
+
+          // http_request is pass-through: forward the incoming set (with any
+          // saved variable merged into the per-asset context) to downstream nodes.
+          if (node.subType === "http_request") {
+            const newContext: AssetContext = new Map(context);
+            if (config.saveAs && httpVariables) {
+              for (const [aid, val] of httpVariables) {
+                newContext.set(aid, { ...(newContext.get(aid) || {}), [config.saveAs]: val });
+              }
+            }
+            const targets = adjacency.get(nodeId)?.get(null) || [];
+            for (const t of targets) queue.push({ nodeId: t, assetIds: actionAssetIds, context: newContext });
           }
         }
       }
