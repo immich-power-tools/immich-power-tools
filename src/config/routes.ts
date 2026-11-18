@@ -107,6 +107,13 @@ export const VALIDATE_PERMISSIONS_PATH = BASE_API_ENDPOINT + "/validate-permissi
 export const IMPORT_JOBS_PATH = BASE_API_ENDPOINT + "/import-jobs";
 export const IMPORT_JOB_PATH = (jobId: string) => BASE_API_ENDPOINT + "/import-jobs/" + jobId;
 
+// Jobs
+export const JOB_QUEUES_PATH = BASE_API_ENDPOINT + "/jobs/queues";
+export const JOB_RUN_PATH = BASE_API_ENDPOINT + "/jobs/run";
+export const JOB_SCHEDULES_PATH = BASE_API_ENDPOINT + "/job-schedules";
+export const JOB_SCHEDULE_PATH = (id: string) => BASE_API_ENDPOINT + "/job-schedules/" + id;
+export const GENERATE_JOB_API_KEY_PATH = BASE_API_ENDPOINT + "/settings/generate-job-api-key";
+
 // Workflows
 export const LIST_WORKFLOWS_PATH = BASE_API_ENDPOINT + "/workflows";
 export const CREATE_WORKFLOW_PATH = BASE_API_ENDPOINT + "/workflows";

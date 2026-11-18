@@ -9,5 +9,8 @@ export async function register() {
 
     const { loadAllScheduledWorkflows } = await import("./lib/workflow/scheduler");
     await loadAllScheduledWorkflows();
+
+    const { loadAllJobSchedules } = await import("./lib/jobs/scheduler");
+    await loadAllJobSchedules();
   }
 }

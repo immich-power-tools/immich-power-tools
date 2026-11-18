@@ -1,4 +1,4 @@
-import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, PackageSearch, Rewind, Search, Settings, Share2, User, Video, Workflow } from "lucide-react";
+import { Copy, GalleryHorizontal, GalleryVerticalEnd, Image as ImageIcon, MapPin, MapPinX, PackageSearch, Rewind, Search, Settings, Share2, Timer, User, Video, Workflow } from "lucide-react";
 
 interface SidebarNav {
   title: string;
@@ -36,6 +36,7 @@ export const sidebarGroups: SidebarGroup[] = [
     label: "Automation",
     items: [
       { title: "Workflows", link: "/workflows", icon: <Workflow className="h-4 w-4" />, badge: "Beta" },
+      { title: "Job Runner", link: "/jobs", icon: <Timer className="h-4 w-4" />, badge: "Beta" },
     ],
   },
   {
