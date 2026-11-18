@@ -18,6 +18,11 @@ export const ENV = {
   POWER_TOOLS_ENDPOINT_URL: process.env.POWER_TOOLS_ENDPOINT_URL as string,
   // App SQLite database path (defaults to ./data/app.db)
   APP_DB_PATH: process.env.APP_DB_PATH as string | undefined,
+  MISSING_ORIGINALS_ENABLED: process.env.MISSING_ORIGINALS_ENABLED === 'true',
+  MISSING_ORIGINALS_DB_PREFIX: process.env.MISSING_ORIGINALS_DB_PREFIX as string | undefined,
+  MISSING_ORIGINALS_SCAN_ROOT: (process.env.MISSING_ORIGINALS_SCAN_ROOT || '/mnt/immich-upload') as string,
+  MISSING_ORIGINALS_MAX_MISSING_PERCENT: (process.env.MISSING_ORIGINALS_MAX_MISSING_PERCENT || '20') as string,
+  MISSING_ORIGINALS_CONCURRENCY: (process.env.MISSING_ORIGINALS_CONCURRENCY || '64') as string,
   // OAuth configuration
   OAUTH_ENABLED: process.env.OAUTH_ENABLED === 'true',
   OAUTH_BUTTON_TEXT: (process.env.OAUTH_BUTTON_TEXT || 'Login with OAuth') as string,

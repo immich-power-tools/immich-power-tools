@@ -4,7 +4,7 @@ export interface IAsset {
   type: string;
   originalPath: string;
   isFavorite: boolean;
-  duration: number | null;
+  duration: string | number | null;
   originalFileName: string;
   thumbhash?: IAssetThumbhash;
   localDateTime: string | Date;
