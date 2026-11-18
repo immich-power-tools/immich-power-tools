@@ -1,5 +1,5 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
-import { FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag } from "lucide-react";
+import { FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Webhook } from "lucide-react";
 
 const actionIcons: Record<string, any> = {
   create_album: FolderPlus,
@@ -10,6 +10,7 @@ const actionIcons: Record<string, any> = {
   archive: Archive,
   tag: Tag,
   remove_tag: Tag,
+  http_request: Webhook,
 };
 
 const actionLabels: Record<string, string> = {
@@ -21,6 +22,7 @@ const actionLabels: Record<string, string> = {
   archive: "Archive",
   tag: "Add Tag",
   remove_tag: "Remove Tag",
+  http_request: "HTTP Call",
 };
 
 export default function ActionNode({ data, selected }: NodeProps) {
@@ -46,6 +48,9 @@ export default function ActionNode({ data, selected }: NodeProps) {
           )}
           {(subType === "tag" || subType === "remove_tag") && config.tagName && (
             <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{config.tagName}</p>
+          )}
+          {subType === "http_request" && config.url && (
+            <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{config.method || "POST"} {config.url}</p>
           )}
         </div>
       </div>

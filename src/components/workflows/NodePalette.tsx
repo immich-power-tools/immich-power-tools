@@ -1,4 +1,4 @@
-import { FilePlus, FileEdit, Database, GitBranch, GitFork, FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag } from "lucide-react";
+import { FilePlus, FileEdit, Database, GitBranch, GitFork, FolderPlus, FolderInput, FolderMinus, Heart, HeartOff, Archive, Tag, Tags, Star, UserCheck, Webhook } from "lucide-react";
 
 interface PaletteItem {
   type: string;
@@ -12,6 +12,11 @@ const assetTriggerItems: PaletteItem[] = [
   { type: "trigger", subType: "new_asset", label: "New Asset", icon: FilePlus, color: "text-green-500" },
   { type: "trigger", subType: "asset_updated", label: "Asset Updated", icon: FileEdit, color: "text-green-500" },
   { type: "trigger", subType: "all_assets", label: "All Assets", icon: Database, color: "text-green-500" },
+  { type: "trigger", subType: "person_named", label: "Person Named", icon: UserCheck, color: "text-green-500" },
+  { type: "trigger", subType: "album_added", label: "Added to Album", icon: FolderInput, color: "text-green-500" },
+  { type: "trigger", subType: "favorited", label: "Favorited", icon: Heart, color: "text-green-500" },
+  { type: "trigger", subType: "rating_changed", label: "Rating Changed", icon: Star, color: "text-green-500" },
+  { type: "trigger", subType: "tag_added", label: "Tag Added", icon: Tags, color: "text-green-500" },
 ];
 
 const logicItems: PaletteItem[] = [
@@ -28,6 +33,7 @@ const actionItems: PaletteItem[] = [
   { type: "action", subType: "archive", label: "Archive", icon: Archive, color: "text-purple-500" },
   { type: "action", subType: "tag", label: "Add Tag", icon: Tag, color: "text-purple-500" },
   { type: "action", subType: "remove_tag", label: "Remove Tag", icon: Tag, color: "text-purple-500" },
+  { type: "action", subType: "http_request", label: "HTTP Call", icon: Webhook, color: "text-purple-500" },
 ];
 
 function PaletteGroup({ title, items }: { title: string; items: PaletteItem[] }) {
