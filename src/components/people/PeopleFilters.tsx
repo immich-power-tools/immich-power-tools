@@ -20,7 +20,9 @@ import { removeNullOrUndefinedProperties } from "@/helpers/data.helper";
 export function PeopleFilters() {
   const router = useRouter();
   const filters = usePeopleFilterContext();
-  const { updateContext, page, maximumAssetCount, type = "all", query = "", visibility = "all" } = filters;
+  // visibility defaults to "visible" to match PeopleList's initial state, so
+  // the dropdown reflects what's actually being shown rather than saying "All".
+  const { updateContext, page, maximumAssetCount, type = "all", query = "", visibility = "visible" } = filters;
 
   const handleChange = (data: Partial<IPersonListFilters>) => {
     // Any filter change other than an explicit page navigation must reset
