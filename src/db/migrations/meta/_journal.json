@@ -36,6 +36,13 @@
       "when": 1775574030092,
       "tag": "0004_equal_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784264841678,
+      "tag": "0005_smart_forge",
+      "breakpoints": true
     }
   ]
 }
