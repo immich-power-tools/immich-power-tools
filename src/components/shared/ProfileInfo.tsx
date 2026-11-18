@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useConfig } from "@/contexts/ConfigContext";
 import { logoutUser } from "@/handlers/api/user.handler";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
-import { useToast } from "../ui/use-toast";
+import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -22,14 +22,13 @@ export default function ProfileInfo() {
   const { updateContext, ...user } = useCurrentUser();
   const { immichURL, exImmichUrl, version } = useConfig();
   const { theme, setTheme } = useTheme();
-  const toast = useToast();
   const router = useRouter();
 
   const handleLogout = () =>
     logoutUser()
       .then(() => updateContext(null))
       .catch((error) => {
-        toast.toast({ title: "Error", description: error.message });
+        toast.error(error.message);
       });
 
   return (

@@ -13,7 +13,7 @@ import { Share, SortAsc, SortDesc, Trash, Grid3X3, Table as TableIcon } from 'lu
 import { Input } from '@/components/ui/input'
 import AlbumShareDialog, { IAlbumShareDialogRef } from '@/components/albums/share/AlbumShareDialog'
 import { AlertDialog } from '@/components/ui/alert-dialog'
-import toast from 'react-hot-toast'
+import { toast } from "sonner";
 import FloatingBar from '@/components/shared/FloatingBar'
 import DataTable, { DataTableRef } from '@/components/ui/data-table'
 import { albumColumns } from '@/components/albums/AlbumTableColumns'

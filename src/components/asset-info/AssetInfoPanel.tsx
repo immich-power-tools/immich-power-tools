@@ -18,7 +18,7 @@ import { updatePerson } from '@/handlers/api/people.handler'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { toast } from '@/components/ui/use-toast'
+import { toast } from "sonner";
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -101,10 +101,10 @@ function PersonChip({ person: p, exImmichUrl, isHidden: hidden, onUpdate }: Pers
     try {
       await updatePerson(p.personId, { name })
       onUpdate({ personId: p.personId, personName: name })
-      toast({ title: "Updated", description: `Renamed to "${name}"` })
+      toast.success("Updated", { description: `Renamed to "${name}"` })
       setOpen(false)
     } catch {
-      toast({ title: "Error", description: "Failed to rename", variant: "destructive" })
+      toast.error("Failed to rename")
     } finally {
       setSaving(false)
     }
@@ -115,10 +115,10 @@ function PersonChip({ person: p, exImmichUrl, isHidden: hidden, onUpdate }: Pers
     try {
       await updatePerson(p.personId, { isHidden: true })
       onUpdate({ personId: p.personId, hidden: true })
-      toast({ title: "Hidden", description: `"${p.personName || 'Unknown'}" hidden` })
+      toast.success("Hidden", { description: `"${p.personName || 'Unknown'}" hidden` })
       setOpen(false)
     } catch {
-      toast({ title: "Error", description: "Failed to hide person", variant: "destructive" })
+      toast.error("Failed to hide person")
     } finally {
       setSaving(false)
     }
@@ -321,9 +321,9 @@ export default function AssetInfoPanel({ assetId }: AssetInfoPanelProps) {
                       try {
                         await Promise.all(unnamed.map((p) => updatePerson(p.personId, { isHidden: true })))
                         setHiddenIds((prev) => { const next = new Set(prev); unnamed.forEach((p) => next.add(p.personId)); return next })
-                        toast({ title: "Hidden", description: `Hidden ${unnamed.length} unnamed people` })
+                        toast.success("Hidden", { description: `Hidden ${unnamed.length} unnamed people` })
                       } catch {
-                        toast({ title: "Error", description: "Failed to hide people", variant: "destructive" })
+                        toast.error("Failed to hide people")
                       }
                     }}
                     className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
@@ -340,9 +340,9 @@ export default function AssetInfoPanel({ assetId }: AssetInfoPanelProps) {
                       try {
                         await Promise.all(unhidden.map((p) => updatePerson(p.personId, { isHidden: true })))
                         setHiddenIds((prev) => { const next = new Set(prev); unhidden.forEach((p) => next.add(p.personId)); return next })
-                        toast({ title: "Hidden", description: `Hidden ${unhidden.length} people` })
+                        toast.success("Hidden", { description: `Hidden ${unhidden.length} people` })
                       } catch {
-                        toast({ title: "Error", description: "Failed to hide people", variant: "destructive" })
+                        toast.error("Failed to hide people")
                       }
                     }}
                     className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"

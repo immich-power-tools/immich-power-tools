@@ -8,7 +8,7 @@ import {
   Workflow, Shield, CheckCircle, XCircle, Server, Globe, Download, Wand2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import API from "@/lib/api";
 import { useConfig } from "@/contexts/ConfigContext";
 import Link from "next/link";
@@ -94,7 +94,7 @@ export default function SettingsPage() {
 
     setImportApiKeyLoading(true);
     setImportValidationResult(null);
-    toast("Validating API key...");
+    const toastId = toast.loading("Validating API key...");
 
     try {
       const result = await API.post("/api/settings/validate-api-key", {
@@ -104,16 +104,16 @@ export default function SettingsPage() {
       setImportValidationResult(result);
 
       if (!result.valid) {
-        toast.error(result.error || "API key validation failed");
+        toast.error(result.error || "API key validation failed", { id: toastId });
         setImportApiKeyLoading(false);
         return;
       }
 
       await API.put("/api/settings/kv/import_api_key", { value: importApiKey.trim() });
       setImportApiKeySaved(true);
-      toast.success("API key validated and saved");
+      toast.success("API key validated and saved", { id: toastId });
     } catch {
-      toast.error("Failed to validate API key");
+      toast.error("Failed to validate API key", { id: toastId });
     }
     setImportApiKeyLoading(false);
   };
@@ -148,7 +148,7 @@ export default function SettingsPage() {
 
     setWorkflowApiKeyLoading(true);
     setValidationResult(null);
-    toast("Validating API key...");
+    const toastId = toast.loading("Validating API key...");
 
     try {
       // Validate first
@@ -156,7 +156,7 @@ export default function SettingsPage() {
       setValidationResult(result);
 
       if (!result.valid) {
-        toast.error(result.error || "API key validation failed");
+        toast.error(result.error || "API key validation failed", { id: toastId });
         setWorkflowApiKeyLoading(false);
         return;
       }
@@ -164,9 +164,9 @@ export default function SettingsPage() {
       // Valid — save it
       await API.put("/api/settings/kv/workflow_api_key", { value: workflowApiKey });
       setWorkflowApiKeySaved(true);
-      toast.success("API key validated and saved");
+      toast.success("API key validated and saved", { id: toastId });
     } catch {
-      toast.error("Failed to validate API key");
+      toast.error("Failed to validate API key", { id: toastId });
     }
     setWorkflowApiKeyLoading(false);
   };

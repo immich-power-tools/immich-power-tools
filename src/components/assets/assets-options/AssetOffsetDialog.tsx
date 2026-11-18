@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatDate, offsetDate } from '@/helpers/date.helper';
 import Image from 'next/image';
 import { updateAssets } from '@/handlers/api/asset.handler';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 
 interface IProps {
   assets: IAsset[];
@@ -119,7 +119,6 @@ const offsetDateWithTimezone = (
 };
 
 export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProps) {
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<IAsset[]>(_assets);
   const [offsetData, setOffsetData] = useState<{ 
@@ -147,6 +146,7 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    let failed = 0;
     const promises = assets.map(async (asset) => {
       setAssetStatus({ [asset.id]: 'pending' });
       await updateAssets({
@@ -158,6 +158,7 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
           setOpen(false);
         })
         .catch((error) => {
+          failed++;
           setLoading(false);
           setAssetStatus({ [asset.id]: 'error' });
         })
@@ -166,10 +167,11 @@ export default function AssetOffsetDialog({ assets: _assets, onComplete }: IProp
     setLoading(false);
     setOpen(false);
     onComplete();
-    toast({
-      title: 'Asset dates offset',
-      description: 'Asset dates have been offset',
-    })
+    if (failed === 0) {
+      toast.success('Asset dates offset', { description: 'Asset dates have been offset' })
+    } else {
+      toast.error(`Failed to offset ${failed} of ${assets.length} assets`)
+    }
   }
 
   useEffect(() => {

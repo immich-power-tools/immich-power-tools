@@ -20,7 +20,7 @@ import {
 import { IPerson } from "@/types/person";
 import { Avatar } from "../ui/avatar";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useToast } from "../ui/use-toast";
+import { toast } from "sonner";
 import { Input } from "../ui/input";
 import Loader from "../ui/loader";
 import {
@@ -62,7 +62,6 @@ export function PersonMergeDropdown({
   const [merging, setMerging] = useState(false);
   const [threshold, setThreshold] = useState(0.5);
   const [name, setName] = useState<"nameless" | "tagged">("tagged");
-  const { toast } = useToast();
 
   const selectedIds = useMemo(
     () => selectedPeople.map((p) => p.id),
@@ -98,10 +97,7 @@ export function PersonMergeDropdown({
     return listSimilarFaces(person.id, { threshold, name: name })
       .then(setSimilarPeople)
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Failed to fetch similar people",
-        });
+        toast.error("Failed to fetch similar people");
       })
       .finally(() => {
         setSimilarLoading(false);
@@ -131,10 +127,7 @@ export function PersonMergeDropdown({
     const mergeInBatches = async (ids: string[], index: number = 0) => {
       if (index >= ids.length) {
         setOpen(false);
-        toast({
-          title: "Success",
-          description: "People merged successfully",
-        });
+        toast.success("People merged successfully");
         setMerging(false);
         setSelectedPeople([]);
         setSimilarPeople([]);
@@ -148,10 +141,7 @@ export function PersonMergeDropdown({
         await mergePerson(person.id, batch);
         mergeInBatches(ids, index + 5);
       } catch {
-        toast({
-          title: "Error",
-          description: "Failed to merge people",
-        });
+        toast.error("Failed to merge people");
         setMerging(false);
       }
     };

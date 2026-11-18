@@ -4,6 +4,7 @@ import * as React from 'react'
 import { ButtonProps, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useImperativeHandle, useState } from 'react'
+import { toast } from "sonner";
 
 const AlertDialogRoot = AlertDialogPrimitive.Root
 
@@ -162,11 +163,16 @@ const AlertDialog = React.forwardRef<IAlertDialogActions, Partial<AlertDialogPro
 
   const handleConfirm = async () => {
     setLoading(true)
-    if (onConfirm) {
-      await onConfirm()
+    try {
+      if (onConfirm) {
+        await onConfirm()
+      }
+      setOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Something went wrong")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-    setOpen(false)
   }
 
   return (

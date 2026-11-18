@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { CheckIcon } from '@radix-ui/react-icons'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
+import { toast } from "sonner";
 
 interface AlbumPeopleProps {
   album: IAlbum
@@ -67,9 +68,8 @@ const AlbumPeople = React.forwardRef<IAlbumPeopleRef, AlbumPeopleProps>(({ album
     })
   }
 
-  const handleHidePerson = (personId: string) => {
-    setHidingPerson(true)
-    updatePerson(personId, { isHidden: true }).then(() => {
+  const hidePerson = (personId: string) => {
+    return updatePerson(personId, { isHidden: true }).then(() => {
       setPeople((oldPeople) => oldPeople.filter((person) => person.id !== personId))
       router.push({
         pathname,
@@ -78,19 +78,26 @@ const AlbumPeople = React.forwardRef<IAlbumPeopleRef, AlbumPeopleProps>(({ album
           faceId: null
         }
       })
-    }).finally(() => {
-      setHidingPerson(false)
     })
   }
 
+  const handleHidePerson = (personId: string) => {
+    setHidingPerson(true)
+    hidePerson(personId)
+      .then(() => toast.success("Person hidden"))
+      .catch(() => toast.error("Failed to hide person"))
+      .finally(() => setHidingPerson(false))
+  }
+
   const handleHideSelectedPeople = () => {
-    const promises = selectedPeople.map((personId) => {
-      return handleHidePerson(personId)
-    })
-    Promise.all(promises).then(() => {
-      setSelectedPeople([])
-      setSelectionMode(false)
-    })
+    const count = selectedPeople.length
+    Promise.all(selectedPeople.map(hidePerson))
+      .then(() => {
+        toast.success(`Hidden ${count} ${count === 1 ? "person" : "people"}`)
+        setSelectedPeople([])
+        setSelectionMode(false)
+      })
+      .catch(() => toast.error("Failed to hide some people"))
   }
 
   const handleBulkSelect = (personId: string) => {

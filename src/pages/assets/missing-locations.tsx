@@ -16,6 +16,7 @@ import FloatingBar from "@/components/shared/FloatingBar";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import AssetOffsetDialog from "@/components/assets/assets-options/AssetOffsetDialog";
+import { toast } from "sonner";
 
 export default function MissingLocations() {
   const { query, push } = useRouter();
@@ -73,8 +74,10 @@ export default function MissingLocations() {
   };
 
   const handleDelete = () => {
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Deleted ${count} asset(s)`);
       let newDates = [...contextState.config.dates || []];
 
       contextState.updateContext({

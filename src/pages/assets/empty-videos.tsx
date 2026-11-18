@@ -16,6 +16,7 @@ import AssetGrid from '@/components/shared/AssetGrid'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from "sonner";
 
 export default function EmptyVideosPage() {
   const router = useRouter()
@@ -102,8 +103,10 @@ export default function EmptyVideosPage() {
   }
 
   const handleDelete = () => {
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds, { force: true }).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Deleted ${count} asset(s)`);
       setAssets(newAssets)
       contextState.updateContext({
         selectedIds: [],
@@ -114,8 +117,10 @@ export default function EmptyVideosPage() {
 
   const handleTrash = () => {
     // Move assets to trash: force = false (soft delete/trash)
+    const count = contextState.selectedIds.length;
     return deleteAssets(contextState.selectedIds, { force: false }).then(() => {
       const newAssets = contextState.assets.filter((a) => !contextState.selectedIds.includes(a.id));
+      toast.success(`Moved ${count} asset(s) to trash`);
       setAssets(newAssets)
       contextState.updateContext({
         selectedIds: [],

@@ -1,6 +1,7 @@
 import { IPerson } from "@/types/person";
 import React, { useState } from "react";
 import { updatePerson } from "@/handlers/api/people.handler";
+import { toast } from "sonner";
 
 interface IProps {
   person: IPerson;
@@ -22,8 +23,11 @@ export default function PersonHideCell({ person, onUpdate }: IProps) {
           ...person,
           isHidden: hidden,
         })
+        toast.success(hidden ? "Person hidden" : "Person unhidden");
       })
-      .catch(() => {})
+      .catch(() => {
+        toast.error(hidden ? "Failed to hide person" : "Failed to unhide person");
+      })
       .finally(() => {
         setLoading(false);
       });

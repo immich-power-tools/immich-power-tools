@@ -9,7 +9,7 @@ import { ArrowRight, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { LoginForm } from "../auth/LoginForm";
 import { useConfig } from "@/contexts/ConfigContext";
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "../ui/sonner";
 import { useRouter } from "next/router";
 
 type RootLayoutProps = {

@@ -13,7 +13,6 @@ import { IAlbum, IAlbumCreate } from "@/types/album";
 import { Input } from "../ui/input";
 import { usePhotoSelectionContext } from "@/contexts/PhotoSelectionContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import toast from "react-hot-toast";
 import { Label } from "../ui/label";
 
 interface IProps {
@@ -53,7 +52,7 @@ export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit, d
 
   const fetchData = () => {
     setLoading(true);
-    return listAlbums()
+    return listAlbums({ sortBy: "albumName", sortOrder: "asc" })
       .then(setAlbums)
       .catch(setErrorMessage)
       .finally(() => setLoading(false));
@@ -79,13 +78,9 @@ export default function AlbumSelectorDialog({ onSelected, onCreated, onSubmit, d
     setLoading(true);
     onSubmit(formData)
       .then(() => {
-        toast.success("Album created successfully");
         setFormData({ albumName: "" });
         setOpen(false);
         fetchData();
-      })
-      .catch((e) => {
-        toast.error("Failed to create album");
       })
       .finally(() => {
         setLoading(false);

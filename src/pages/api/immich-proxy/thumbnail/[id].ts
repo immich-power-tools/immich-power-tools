@@ -44,6 +44,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Set the appropriate headers for the image response
     res.setHeader('Content-Type', response.headers.get('Content-Type') || 'image/png')
     res.setHeader('Content-Length', imageBuffer.byteLength)
+    // Person cover thumbnails can change (Immich re-picks the face), so cap
+    // the cache at a day rather than the asset proxy's week.
+    res.setHeader('Cache-Control', 'private, max-age=86400')
 
     // Send the image data
     res.send(Buffer.from(imageBuffer))

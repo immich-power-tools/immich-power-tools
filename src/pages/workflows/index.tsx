@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import hotToast from "react-hot-toast";
+import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface IWorkflowEnriched extends IWorkflow {
@@ -78,7 +78,7 @@ export default function WorkflowsPage() {
       const data = await listWorkflows();
       setWorkflows(data as IWorkflowEnriched[]);
     } catch {
-      hotToast.error("Failed to load workflows");
+      toast.error("Failed to load workflows");
     }
     setLoading(false);
   };
@@ -92,7 +92,7 @@ export default function WorkflowsPage() {
       const workflow = await createWorkflow({ name: "Untitled Workflow" });
       router.push(`/workflows/${workflow.id}`);
     } catch {
-      hotToast.error("Failed to create workflow");
+      toast.error("Failed to create workflow");
     }
   };
 
@@ -100,9 +100,9 @@ export default function WorkflowsPage() {
     try {
       await deleteWorkflow(id);
       setWorkflows((prev) => prev.filter((w) => w.id !== id));
-      hotToast.success("Workflow deleted");
+      toast.success("Workflow deleted");
     } catch {
-      hotToast.error("Failed to delete workflow");
+      toast.error("Failed to delete workflow");
     }
   };
 
@@ -117,7 +117,7 @@ export default function WorkflowsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      hotToast.error("Failed to export workflow");
+      toast.error("Failed to export workflow");
     }
   };
 
@@ -129,9 +129,9 @@ export default function WorkflowsPage() {
       const data = JSON.parse(text);
       const workflow = await importWorkflow(data);
       setWorkflows((prev) => [workflow as IWorkflowEnriched, ...prev]);
-      hotToast.success(`Workflow "${workflow.name}" imported`);
+      toast.success(`Workflow "${workflow.name}" imported`);
     } catch {
-      hotToast.error("Failed to import workflow");
+      toast.error("Failed to import workflow");
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

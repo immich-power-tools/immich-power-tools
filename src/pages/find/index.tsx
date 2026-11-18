@@ -24,7 +24,7 @@ import { IPerson } from '@/types/person';
 import { listPeople } from '@/handlers/api/people.handler';
 import { PERSON_THUBNAIL_PATH } from '@/config/routes';
 import { CHAT_PLACEHOLDERS, FIND_SUGGESTIONS, HERO_PLACEHOLDERS, personSuggestions, pop, rise, softSpring, spring, stagger } from '@/config/constants/find.constant';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 
 
@@ -37,7 +37,6 @@ const PrivacyNote = ({ className }: { className?: string }) => (
 
 
 export default function FindPage() {
-  const { toast } = useToast();
   const { aiEnabled } = useConfig();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -204,17 +203,10 @@ export default function FindPage() {
   const handleSelectAlbum = (album: IAlbum) => {
     return addAssetToAlbum(album.id, contextState.selectedIds)
       .then(() => {
-        toast({
-          title: `Assets added to ${album.albumName}`,
-          description: `${contextState.selectedIds.length} assets added to album`,
-        });
+        toast.success(`Assets added to ${album.albumName}`, { description: `${contextState.selectedIds.length} assets added to album` });
       })
       .catch(() => {
-        toast({
-          title: "Error",
-          description: "Failed to add assets album",
-          variant: "destructive",
-        });
+        toast.error("Failed to add assets album");
       });
   };
 
@@ -223,16 +215,9 @@ export default function FindPage() {
       ...formData,
       assetIds: contextState.selectedIds,
     }).then((newAlbum) => {
-      toast({
-        title: "Album created",
-        description: `Album "${newAlbum.albumName}" created successfully with ${contextState.selectedIds.length} assets.`,
-      });
+      toast.success("Album created", { description: `Album "${newAlbum.albumName}" created successfully with ${contextState.selectedIds.length} assets.` });
     }).catch(() => {
-      toast({
-        title: "Error creating album",
-        description: "Failed to create album",
-        variant: "destructive",
-      });
+      toast.error("Failed to create album");
     });
   }
 

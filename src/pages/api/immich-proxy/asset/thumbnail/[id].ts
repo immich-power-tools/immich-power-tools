@@ -43,6 +43,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Set the appropriate headers for the image response
     res.setHeader('Content-Type', response.headers.get('Content-Type') || 'image/png')
     res.setHeader('Content-Length', imageBuffer.byteLength)
+    // A given asset id + size renders the same pixels for practical purposes
+    // (thumbnails only change on a manual regenerate) — let browsers keep it
+    // a week instead of refetching on every page visit.
+    res.setHeader('Cache-Control', 'private, max-age=604800')
 
     // Send the image data
     res.send(Buffer.from(imageBuffer))

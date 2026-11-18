@@ -7,7 +7,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { ArrowUpRight, Eye, EyeOff, GitMerge, Info, MoreHorizontal, Share2 } from "lucide-react";
 import { useConfig } from "@/contexts/ConfigContext";
-import { useToast } from "../ui/use-toast";
+import { toast } from "sonner";
 import ShareAssetsTrigger from "../shared/ShareAssetsTrigger";
 import { Autocomplete, AutocompleteOption } from "../ui/autocomplete";
 import { AlertDialog, IAlertDialogActions } from "../ui/alert-dialog";
@@ -27,7 +27,6 @@ interface IProps {
 
 export default function PersonItem({ person, onRemove }: IProps) {
   const { exImmichUrl } = useConfig();
-  const { toast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(person);
@@ -40,10 +39,10 @@ export default function PersonItem({ person, onRemove }: IProps) {
       return updatePerson(person.id, { name: formData.name })
         .then(() => {
           setEditMode(false);
-          toast({ title: "Success", description: "Person updated successfully" });
+          toast.success("Person updated successfully");
         })
         .catch(() => {
-          toast({ title: "Error", description: "Failed to update person", variant: "destructive" });
+          toast.error("Failed to update person");
         })
         .finally(() => setLoading(false));
     } else {
@@ -54,13 +53,19 @@ export default function PersonItem({ person, onRemove }: IProps) {
   const handleHide = (hidden: boolean) => {
     setLoading(true);
     return updatePerson(person.id, { isHidden: hidden })
-      .then(() => setFormData((p) => ({ ...p, isHidden: hidden })))
-      .catch(() => {})
+      .then(() => {
+        setFormData((p) => ({ ...p, isHidden: hidden }));
+        toast.success(hidden ? "Person hidden" : "Person unhidden");
+      })
+      .catch(() => {
+        toast.error(hidden ? "Failed to hide person" : "Failed to unhide person");
+      })
       .finally(() => setLoading(false));
   };
 
   const handleMerge = async (option: AutocompleteOption) => {
     await mergePerson(person.id, [option.value]);
+    toast.success(`Merged into ${option.label}`);
   };
 
   return (
@@ -200,8 +205,8 @@ export default function PersonItem({ person, onRemove }: IProps) {
         ref={mergeDialogRef}
         title="Merge Person"
         description="Are you sure you want to merge this person with the selected person?"
-        onConfirm={() => {
-          if (selectedPerson.current) handleMerge(selectedPerson.current);
+        onConfirm={async () => {
+          if (selectedPerson.current) await handleMerge(selectedPerson.current);
         }}
       />
     </div>

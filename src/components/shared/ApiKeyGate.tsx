@@ -3,6 +3,7 @@ import { KeyRound, Wand2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface Permission {
   name: string;
@@ -30,6 +31,7 @@ export default function ApiKeyGate({ title, description, permissions, generateEn
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message ?? "Failed to generate API key");
       }
+      toast.success("API key generated");
       onGenerated();
     } catch (err: any) {
       setError(err.message ?? "Failed to generate API key");
